@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+     "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+   // "strict": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "layouts/Auth.js",
+    "layouts/Admin.js",
+    "components/Header/HeaderStats.js",
+    "components/Cards/CardStats.js",
+    "store/actionTypes.js",
+    "store/store.ts"
+, "pages/customer/test.jsx"  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

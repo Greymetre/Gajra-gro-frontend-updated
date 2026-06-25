@@ -2,7 +2,7 @@
 import axios from "axios"
 import { getAuthToken } from "./authHelper"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://187.127.186.131:4000/api"
+const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "https://api.gajragro.fieldkonnect.io/api"
 
 const axiosApi = axios.create({
   baseURL: API_URL,

@@ -1,9 +1,9 @@
 //nvm install v18.15.0
 import axios from "axios"
-// const API_URL = "https://darkblue-ape-166776.hostingersite.com/api"
-const API_URL = "http://187.127.186.131:4000/api"
-// const API_URL = `https://apis.fieldkonnect.io/api`
 import { getAuthToken } from "./authHelper"
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://187.127.186.131:4000/api"
+
 const axiosApi = axios.create({
   baseURL: API_URL,
 })
@@ -63,5 +63,4 @@ export async function submitFormData(url, data, method) {
     },
   }).then(response => response.data)
 }
-
 

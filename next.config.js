@@ -9,7 +9,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.API_URL || 'https://api.gajragro.fieldkonnect.io/api'}/:path*`,
+        destination: `${process.env.API_URL || 'https://apis.fieldkonnect.io/api'}/:path*`,
       },
     ]
   },
@@ -17,8 +17,8 @@ const nextConfig = {
     staticFolder: '/static',
   },
   env: {
-    API_URL: process.env.API_URL || 'https://api.gajragro.fieldkonnect.io/api',
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'https://api.gajragro.fieldkonnect.io/api',
+    API_URL: process.env.API_URL || 'https://apis.fieldkonnect.io/api',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'https://apis.fieldkonnect.io/api',
     IMAGE_URL: process.env.IMAGE_URL 
   },
 }

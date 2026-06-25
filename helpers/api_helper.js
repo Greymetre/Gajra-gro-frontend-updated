@@ -1,7 +1,7 @@
 //nvm install v18.15.0
 import axios from "axios"
-const API_URL = "https://darkblue-ape-166776.hostingersite.com/api"
-// const API_URL = "http://localhost:4000/api"
+// const API_URL = "https://darkblue-ape-166776.hostingersite.com/api"
+const API_URL = "http://187.127.186.131:4000/api"
 // const API_URL = `https://apis.fieldkonnect.io/api`
 import { getAuthToken } from "./authHelper"
 const axiosApi = axios.create({

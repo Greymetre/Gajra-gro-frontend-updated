@@ -21,7 +21,6 @@ import {
   backendDeleteCoupon,
   backendSearchCoupons,
   backendGetExportAllCoupons,
-  backendGetQrUpdateTemplate,
   backendPostImportQrUpdate,
   replacePackageNumber
 } from "../../helpers/backend_helper";
@@ -329,29 +328,24 @@ useEffect(() => {
     }
   };
 
-  const handleDownloadQrUpdateTemplate = async () => {
-    setIsQrUpdateLoading(true);
+  const handleDownloadQrUpdateTemplate = () => {
     try {
-      const template = await backendGetQrUpdateTemplate();
-      const blob =
-        template instanceof Blob
-          ? template
-          : new Blob([template], {
-              type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            });
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = "qr_update_template.xlsx";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      const headings = [
+        "Packing Slip No",
+        "Invoice No",
+        "Invoice Date (DD/MM/YYYY)",
+        "Dealer Code",
+        "Dealer Name",
+        "State",
+        "City",
+      ];
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.aoa_to_sheet([headings]);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Invoice Update");
+      XLSX.writeFile(workbook, "qr_update_template.xlsx");
     } catch (error) {
       console.error("Error downloading QR update template", error);
       alert("Unable to download the invoice update template.");
-    } finally {
-      setIsQrUpdateLoading(false);
     }
   };
 

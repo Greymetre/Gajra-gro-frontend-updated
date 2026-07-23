@@ -468,6 +468,12 @@ export const backendPostAddNewCoupon = (data) => post(url.MODULE_COUPONS, data);
 export const backendPostImportNewCoupon = (data) => post(url.MODULE_COUPONS_IMPORT, data);
 // GET EXPORT ALL COUPONS
 export const backendGetExportAllCoupons = (params = {}) => get(url.MODULE_COUPONS_EXPORT_ALL, { params });
+// Download packing-slip invoice update template
+export const backendGetQrUpdateTemplate = () =>
+  get(url.QR_UPDATE_TEMPLATE, { responseType: "blob" });
+// Import packing-slip invoice details
+export const backendPostImportQrUpdate = (data) =>
+  post(url.IMPORT_QR_UPDATE, data);
 // GET EXPORT ALL COUPONS
 export const replacePackageNumber = (data) => post(url.REPLACE_PACKAGE_NUMBER, data);
 // Update Transaction

@@ -128,6 +128,8 @@ export const GET_PENDING_REDEMPTIONS =
 export const MODULE_COUPONS = "/user/coupons";
 export const MODULE_COUPONS_IMPORT = "/user/coupons/couponMultipleImport";
 export const MODULE_COUPONS_EXPORT_ALL = "/user/coupons/export-all";
+export const QR_UPDATE_TEMPLATE = "/user/packing-list/qr-update-template";
+export const IMPORT_QR_UPDATE = "/user/packing-list/import-qr-update";
 
 
 
@@ -191,4 +193,3 @@ export const POST_IMPORT_CALLSUMMARY = "/user/callcenter/import";
 //Loyalty Module Routes
 export const GET_NEWOTP_REQUEST = "/loyalty/auth/newOtpRequest";
 export const REPLACE_PACKAGE_NUMBER = "/user/coupons/replacePackingSlip";
-

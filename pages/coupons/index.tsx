@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Router, { useRouter } from "next/router";
 import Link from "next/link";
 import {
@@ -21,6 +21,8 @@ import {
   backendDeleteCoupon,
   backendSearchCoupons,
   backendGetExportAllCoupons,
+  backendGetQrUpdateTemplate,
+  backendPostImportQrUpdate,
   replacePackageNumber
 } from "../../helpers/backend_helper";
 import * as XLSX from "xlsx";
@@ -48,6 +50,8 @@ export default function Coupons() {
   const [search, setSearch] = useState("");
   const [oldPackageSlip, setOldPackageSlip] = useState("");
   const [newPackageSlip, setNewPackageSlip] = useState("");
+  const qrUpdateFileInputRef = useRef<HTMLInputElement>(null);
+  const [isQrUpdateLoading, setIsQrUpdateLoading] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const today: string = new Date().toISOString().slice(0, 10);
@@ -280,17 +284,23 @@ useEffect(() => {
                 GG: profile.productNo,
                 MPoints: profile.points,
                 MCoupons: isMechanic ? coupon.coupon : "",
-                "M Scan Status": "",
+                "M Scan Status":
+                  coupon.mScanStatus || profile.mScanStatus || "N",
                 RPoints: profile.rPoints,
                 RCoupons: isRetailer ? coupon.coupon : "",
-                "R Scan Status": "",
+                "R Scan Status":
+                  coupon.rScanStatus || profile.rScanStatus || "N",
                 "PACKING SLIP NO": profile.packingList || "",
-                "INVOICE NO": "",
-                "INVOICE DATE": "",
-                "DEALER CODE": "",
-                "DEALER NAME": "",
-                City: "",
-                State: "",
+                "INVOICE NO":
+                  profile.invoiceNo || profile.invoiceNumber || "",
+                "INVOICE DATE":
+                  profile.invoiceDate || "",
+                "DEALER CODE":
+                  profile.dealerCode || profile.distributorCode || "",
+                "DEALER NAME":
+                  profile.dealerName || profile.distributorName || "",
+                City: profile.city || "",
+                State: profile.state || "",
               });
             });
           }
@@ -316,6 +326,126 @@ useEffect(() => {
       alert("An error occurred during export.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDownloadQrUpdateTemplate = async () => {
+    setIsQrUpdateLoading(true);
+    try {
+      const template = await backendGetQrUpdateTemplate();
+      const blob =
+        template instanceof Blob
+          ? template
+          : new Blob([template], {
+              type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            });
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = "qr_update_template.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error("Error downloading QR update template", error);
+      alert("Unable to download the invoice update template.");
+    } finally {
+      setIsQrUpdateLoading(false);
+    }
+  };
+
+  const handleImportQrUpdate = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsQrUpdateLoading(true);
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+        firstSheet,
+        { defval: "" },
+      );
+
+      if (!rows.length) {
+        alert("The selected file does not contain any data.");
+        return;
+      }
+
+      const requiredColumns = [
+        "Packing Slip No",
+        "Invoice No",
+        "Invoice Date (DD/MM/YYYY)",
+        "Dealer Code",
+        "Dealer Name",
+        "State",
+        "City",
+      ];
+      const missingColumns = requiredColumns.filter(
+        (column) => !Object.prototype.hasOwnProperty.call(rows[0], column),
+      );
+
+      if (missingColumns.length) {
+        alert(`Missing required columns: ${missingColumns.join(", ")}`);
+        return;
+      }
+
+      const res = await backendPostImportQrUpdate({ data: rows });
+      const responseData = res?.data || res;
+      const missingPackingSlips =
+        responseData?.missingPackingSlips ||
+        responseData?.missingPackingSlipNos ||
+        responseData?.missingValues ||
+        responseData?.notFound;
+
+      if (
+        res?.isError ||
+        (Array.isArray(missingPackingSlips) && missingPackingSlips.length)
+      ) {
+        const missingMessage =
+          Array.isArray(missingPackingSlips) && missingPackingSlips.length
+            ? ` Missing Packing Slip No: ${missingPackingSlips
+                .map((value: unknown) =>
+                  typeof value === "object"
+                    ? JSON.stringify(value)
+                    : String(value),
+                )
+                .join(", ")}. No records were updated.`
+            : "";
+        alert(
+          `${res?.message || "Invoice details could not be updated."}${missingMessage}`,
+        );
+        return;
+      }
+
+      alert(res?.message || "Invoice details updated successfully.");
+      fetchCustomers();
+    } catch (error) {
+      console.error("Error importing QR invoice updates", error);
+      const apiError = (error as any)?.response?.data;
+      const errorData = apiError?.data || apiError;
+      const missingPackingSlips =
+        errorData?.missingPackingSlips ||
+        errorData?.missingPackingSlipNos ||
+        errorData?.missingValues ||
+        errorData?.notFound;
+      const missingMessage =
+        Array.isArray(missingPackingSlips) && missingPackingSlips.length
+          ? ` Missing Packing Slip No: ${missingPackingSlips
+              .map((value: unknown) =>
+                typeof value === "object"
+                  ? JSON.stringify(value)
+                  : String(value),
+              )
+              .join(", ")}. No records were updated.`
+          : "";
+      alert(
+        `${apiError?.message || "Unable to import the file. Please use the provided template."}${missingMessage}`,
+      );
+    } finally {
+      event.target.value = "";
+      setIsQrUpdateLoading(false);
     }
   };
 
@@ -443,6 +573,36 @@ useEffect(() => {
         </Col>
 
         <Col md={6} className="text-end">
+          {moduleAccess?.canImport ? (
+            <>
+              <input
+                ref={qrUpdateFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleImportQrUpdate}
+                className="d-none"
+              />
+              <Button
+                onClick={handleDownloadQrUpdateTemplate}
+                disabled={isQrUpdateLoading}
+                className="p-2 me-2"
+                variant="outline-light"
+              >
+                Download Invoice Template
+              </Button>
+              <Button
+                onClick={() => qrUpdateFileInputRef.current?.click()}
+                disabled={isQrUpdateLoading}
+                className="p-2 me-2"
+                variant="outline-light"
+              >
+                {isQrUpdateLoading ? (
+                  <Spinner animation="border" size="sm" className="me-1" />
+                ) : null}
+                Update Packing Slip Invoice
+              </Button>
+            </>
+          ) : null}
           {moduleAccess?.canSearch ? (
             <Link
               href={{

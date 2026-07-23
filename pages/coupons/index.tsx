@@ -12,7 +12,11 @@ import {
   Form,
   InputGroup,
 } from "react-bootstrap";
-import { Search } from "react-bootstrap-icons";
+import {
+  FileEarmarkArrowDown,
+  FileEarmarkArrowUp,
+  Search,
+} from "react-bootstrap-icons";
 import { useDispatch, useSelector } from "react-redux";
 import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
@@ -581,19 +585,24 @@ useEffect(() => {
                 disabled={isQrUpdateLoading}
                 className="p-2 me-2"
                 variant="outline-light"
+                title="Download Invoice Template"
+                aria-label="Download Invoice Template"
               >
-                Download Invoice Template
+                <FileEarmarkArrowDown size={24} />
               </Button>
               <Button
                 onClick={() => qrUpdateFileInputRef.current?.click()}
                 disabled={isQrUpdateLoading}
                 className="p-2 me-2"
                 variant="outline-light"
+                title="Update Packing Slip Invoice"
+                aria-label="Update Packing Slip Invoice"
               >
                 {isQrUpdateLoading ? (
-                  <Spinner animation="border" size="sm" className="me-1" />
-                ) : null}
-                Update Packing Slip Invoice
+                  <Spinner animation="border" size="sm" />
+                ) : (
+                  <FileEarmarkArrowUp size={24} />
+                )}
               </Button>
             </>
           ) : null}

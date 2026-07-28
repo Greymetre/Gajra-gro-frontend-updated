@@ -24,7 +24,6 @@ import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
 import {
   backendCustomerImport,
-  backendCustomerWelcomePoint,
   backendDeleteCustomer,
   backendGetAllCustomers,
 } from "../../helpers/backend_helper";
@@ -145,7 +144,6 @@ const Customer = React.forwardRef((props, ref) => {
     Array<CustomerProfileViewInterface>
   >([]);
   const [requestFileData, setRequestFileData] = useState<KeyValue[]>([]);
-  const [welcomePointLoading, setWelcomePointLoading] = useState<string>("");
   const dispatch = useDispatch();
   // const fetchCustomers = async () => {
   //   await backendGetAllCustomers({ ...filterData, ...paginationData }).then(
@@ -202,22 +200,6 @@ const Customer = React.forwardRef((props, ref) => {
         }
       })
       .catch((err) => {});
-  };
-
-  const handleAddWelcomePoint = async (customerid: string) => {
-    setWelcomePointLoading(customerid);
-    try {
-      const result = await backendCustomerWelcomePoint(customerid);
-      const response = Array.isArray(result?.data) ? result.data[0] : result?.data;
-      alert(response?.message || "Unable to credit welcome points");
-    } catch (err: any) {
-      alert(
-        err?.response?.data?.message ||
-          "Unable to credit welcome points. Please try again."
-      );
-    } finally {
-      setWelcomePointLoading("");
-    }
   };
 
   const handleOnExport = async () => {
@@ -1583,29 +1565,6 @@ const Customer = React.forwardRef((props, ref) => {
                           {item?.postalCode}
                         </span>
                       </Col>
-                      {item.customerType === "Mechanic" ? (
-                        <Col md={12} className="mb-3">
-                          <Button
-                            variant="success"
-                            disabled={welcomePointLoading === item._id}
-                            onClick={() => handleAddWelcomePoint(item._id)}
-                          >
-                            {welcomePointLoading === item._id ? (
-                              <>
-                                <Spinner
-                                  as="span"
-                                  animation="border"
-                                  size="sm"
-                                  className="me-2"
-                                />
-                                Crediting...
-                              </>
-                            ) : (
-                              "Add Welcome Point"
-                            )}
-                          </Button>
-                        </Col>
-                      ) : null}
                     </Row>
                   </Card.Body>
                 </Card>

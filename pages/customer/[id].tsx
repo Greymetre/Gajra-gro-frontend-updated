@@ -10,6 +10,7 @@ import {
   Form,
   Tabs,
   Tab,
+  Spinner,
 } from "react-bootstrap";
 import {
   PencilSquare,
@@ -30,6 +31,7 @@ import {
   backendGetCustomerInfo,
   backendPostCustomerStatus,
   backendCustomerUserAssign,
+  backendCustomerWelcomePoint,
 } from "../../helpers/backend_helper";
 import Link from "next/link";
 import dashboardimg from "../../assets/images/auth/dashboard.svg";
@@ -67,6 +69,7 @@ const CustomerDetail = () => {
   const [key, setKey] = useState("detailinfo");
   const [assignUserView, setAssignUserView] = useState(false);
   const [assignReportingView, setAssignReportingView] = useState(false);
+  const [welcomePointLoading, setWelcomePointLoading] = useState(false);
   const [customerInfo, setCustomerInfo] =
     useState<CustomerProfileViewInterface>(initialCustomerProfileData);
   const permissionData = useSelector(
@@ -125,6 +128,33 @@ const CustomerDetail = () => {
         }
       })
       .catch((err) => {});
+  };
+
+  const handleAddWelcomePoint = async () => {
+    setWelcomePointLoading(true);
+    try {
+      const result = await backendCustomerWelcomePoint(customerInfo._id);
+      const response = Array.isArray(result?.data) ? result.data[0] : result?.data;
+
+      if (response?.message) {
+        alert(response.message);
+      } else if (
+        response?.customerid === customerInfo._id &&
+        response?.transactionType === "Cr" &&
+        response?.pointType?.toLowerCase() === "welcome point"
+      ) {
+        alert(`${response.points || 50} welcome points credited successfully`);
+      } else {
+        alert("Unable to credit welcome points");
+      }
+    } catch (err: any) {
+      alert(
+        err?.response?.data?.message ||
+          "Unable to credit welcome points. Please try again."
+      );
+    } finally {
+      setWelcomePointLoading(false);
+    }
   };
 
   const handleInputChange = async (
@@ -367,6 +397,27 @@ const CustomerDetail = () => {
                           </div> */}
                         </Col>
                         <Col xl={6} sm={6} xs={6} className="text-end">
+                          {customerInfo.customerType === "Mechanic" && (
+                            <Button
+                              className="btn btn-success m-r-5"
+                              disabled={welcomePointLoading}
+                              onClick={handleAddWelcomePoint}
+                            >
+                              {welcomePointLoading ? (
+                                <>
+                                  <Spinner
+                                    as="span"
+                                    animation="border"
+                                    size="sm"
+                                    className="me-2"
+                                  />
+                                  Crediting...
+                                </>
+                              ) : (
+                                "Add Welcome Point"
+                              )}
+                            </Button>
+                          )}
                           {moduleAccess.canUpdate && (
                             <Link
                               className="mb-3"

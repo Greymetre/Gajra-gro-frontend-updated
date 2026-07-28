@@ -361,12 +361,12 @@ useEffect(() => {
     try {
       const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
       const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+      const sheetRows = XLSX.utils.sheet_to_json<unknown[]>(
         firstSheet,
-        { defval: "" },
+        { header: 1, defval: "", raw: true },
       );
 
-      if (!rows.length) {
+      if (sheetRows.length < 2) {
         alert("The selected file does not contain any data.");
         return;
       }
@@ -380,12 +380,59 @@ useEffect(() => {
         "State",
         "City",
       ];
+
+      const normalizeHeading = (value: unknown) =>
+        String(value ?? "")
+          .replace(/\u00a0/g, " ")
+          .trim()
+          .replace(/\s+/g, " ")
+          .replace(/[.:]+$/g, "")
+          .toLowerCase();
+
+      const headingAliases: Record<string, string> = {
+        "packing slip no": "Packing Slip No",
+        "packing slip number": "Packing Slip No",
+        "packing no": "Packing Slip No",
+        "invoice no": "Invoice No",
+        "invoice number": "Invoice No",
+        "invoice date (dd/mm/yyyy)": "Invoice Date (DD/MM/YYYY)",
+        "invoice date": "Invoice Date (DD/MM/YYYY)",
+        "invoicedate": "Invoice Date (DD/MM/YYYY)",
+        "dealer code": "Dealer Code",
+        code: "Dealer Code",
+        "dealer name": "Dealer Name",
+        name: "Dealer Name",
+        state: "State",
+        city: "City",
+      };
+
+      const canonicalHeadings = sheetRows[0].map(
+        (heading) => headingAliases[normalizeHeading(heading)] || "",
+      );
       const missingColumns = requiredColumns.filter(
-        (column) => !Object.prototype.hasOwnProperty.call(rows[0], column),
+        (column) => !canonicalHeadings.includes(column),
       );
 
       if (missingColumns.length) {
         alert(`Missing required columns: ${missingColumns.join(", ")}`);
+        return;
+      }
+
+      const rows = sheetRows
+        .slice(1)
+        .filter((row) => row.some((value) => String(value ?? "").trim() !== ""))
+        .map((row) =>
+          canonicalHeadings.reduce<Record<string, unknown>>(
+            (record, heading, index) => {
+              if (heading) record[heading] = row[index] ?? "";
+              return record;
+            },
+            {},
+          ),
+        );
+
+      if (!rows.length) {
+        alert("The selected file does not contain any data.");
         return;
       }
 

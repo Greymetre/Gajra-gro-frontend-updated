@@ -101,6 +101,8 @@ export const backendCustomerPendingPayeeList = (data) =>
 export const backendCustomerUserAssign = (data) =>
   post(url.CUSTOMER_USER_ASSIGN, data);
 export const backendCustomerImport = (data) => post(url.CUSTOMER_IMPORT, data);
+export const backendCustomerWelcomePoint = (customerid) =>
+  post(url.CUSTOMER_WELCOME_POINT, { customerids: [customerid] });
 // Customer Kyc Upload
 export const backendCustomerKycUpload = (data) =>
   submitFormData(url.CUSTOMER_KYC_UPDATE, data, "POST");

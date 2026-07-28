@@ -32,6 +32,7 @@ export const CUSTOMER_LIST_STATUS = "/user/customers/status";
 export const CUSTOMER_PENDING_PAYEELIST = "/user/customers/pendingPayee";
 export const CUSTOMER_USER_ASSIGN = "/user/customers/userAssign";
 export const CUSTOMER_IMPORT = "/user/customers/importCustomers";
+export const CUSTOMER_WELCOME_POINT = "/user/customers/bulkCustomerWelcomePoint";
 export const CUSTOMER_KYC_UPDATE = "/user/customers/kycUpdate";
 
 //Beat Routes

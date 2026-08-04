@@ -24,7 +24,6 @@ interface FormValues {
   customerid: string;
   couponGg: string;
   couponCode: string;
-  createdAt: string;
 
   // Add other fields as needed
 }
@@ -34,8 +33,7 @@ const schema = yup.object().shape({
     // .required('Image is required'),
   customerid: yup.string().required('Customer ID is required'),
   couponGg: yup.string().required('Coupon Gg is required'),
-  couponCode: yup.string().required('Coupon Code is required'),
-  createdAt: yup.string().required('Date is required')
+  couponCode: yup.string().required('Coupon Code is required')
   });
   
 
@@ -91,9 +89,6 @@ if (Array.isArray(formik.values.couponImage)) {
     formdata.append('couponGg', formik.values.couponGg);
   }
 
-  if (formik.values.createdAt) {
-    formdata.append('createdAt', formik.values.createdAt);
-  }
   
   
 
@@ -127,7 +122,6 @@ const handleFormSubmittoTransaction = async () => {
         customerid : formik.values.customerid ,
         couponCode : formik.values.couponCode ,
         couponGg : formik.values.couponGg ,
-        createdAt : formik.values.createdAt,
         statusType : 'Approved',
        }
 
@@ -236,22 +230,6 @@ const handleFormSubmittoTransaction = async () => {
             <span className="text-danger">{formik.errors.customerid}</span>
           ) : null}
           <Row className='pt-4'>
-                                    <Col md={7} sm={7} xs={11} lg={4}>
-                                        <Form.Group className="form-group">
-                                            <Form.Label htmlFor="createdAt">Date</Form.Label>
-                                            <Form.Control
-                                                id="createdAt"
-                                                name="createdAt"
-                                                type="date"
-                                                value={formik.values.createdAt}
-                                                onChange={handleInputChange}
-                                                required
-                                            />
-                                            {formik.touched.createdAt && formik.errors.createdAt ? (
-                                                <div className="text-danger">{formik.errors.createdAt}</div>
-                                            ) : null}
-                                        </Form.Group>
-                                    </Col>
                                     <Col md={7} sm={7} xs={11} lg={4} >
                                         <Form.Group className="form-group">
                                             <Form.Label htmlFor="Coupon">Coupon Code </Form.Label>

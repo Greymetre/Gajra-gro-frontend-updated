@@ -85,6 +85,7 @@ export const POST_CUSTOMERVISIT_STATUS = "/user/customervisit/updateStatus";
 //Loyalty Scheme Routes
 export const MODULE_LOYALTYSCHEME = "/user/loyaltyscheme";
 export const POST_LOYALTYSCHEME_STATUS = "/user/loyaltyscheme/updateStatus";
+export const POST_LOYALTYSCHEME_RESOLVE_IMPORT = "/user/loyaltyscheme/resolve-import";
 export const GET_LOYALTYSCHEME_DROPDOWN_LIST = "/user/loyaltyscheme";
 //Notification Routes
 export const MODULE_NOTIFICATION = "/user/notifications";

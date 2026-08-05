@@ -334,6 +334,8 @@ export const backendDeleteLoyaltyScheme = (id) =>
 // Status Update LoyaltyScheme
 export const backendPostLoyaltySchemeStatus = (data) =>
   post(url.POST_LOYALTYSCHEME_STATUS, data);
+export const backendResolveLoyaltySchemeImport = (data) =>
+  post(url.POST_LOYALTYSCHEME_RESOLVE_IMPORT, data);
 // Get all LoyaltyScheme DropDown
 export const backendLoyaltySchemeDropDownList = () =>
   get(url.GET_LOYALTYSCHEME_DROPDOWN_LIST);

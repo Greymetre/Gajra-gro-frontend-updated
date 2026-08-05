@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Button,
   Row,
@@ -36,6 +36,7 @@ import {
   backendGetLoyaltySchemeInfo,
   backendGetSetting,
   getCategoryProducts,
+  backendResolveLoyaltySchemeImport,
 } from "../../helpers/backend_helper";
 import { objectAppendIntoformData } from "../../utils/utility";
 import {
@@ -66,6 +67,8 @@ import {
 import CustomerTypeCheckbox from "../../components/InputFields/CustomerTypeCheckbox";
 import SelectLoyaltySchemeType from "../../components/InputFields/SelectLoyaltySchemeType";
 import SelectSchemeBasedOn from "../../components/InputFields/SelectSchemeBasedOn";
+import { Download, Upload } from "react-bootstrap-icons";
+import * as XLSX from "xlsx";
 const schema = yup.object().shape({
   schemeName: yup.string().min(3).required("schemeName is required"),
   basedOn: yup.string().required("basedon is required"),
@@ -109,13 +112,30 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
   const [imageFile, setImageFile] = useState<File | undefined>(undefined);
   const [validateOnChange, setValidateOnChange] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
+  const [allProducts, setAllProducts] = useState<any[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [searchString, setSearchString] = useState("");
+  const importFileRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState("");
+  const [importSuccess, setImportSuccess] = useState("");
   const fetchLoyaltySchemeDetail = async () => {
     await backendGetLoyaltySchemeInfo(id).then((res: any) => {
       if (!res.isError) {
-        formik.setValues(res.data);
+        const scheme = res.data || {};
+        const details = Array.isArray(scheme.schemeDetail) && scheme.schemeDetail.length
+          ? scheme.schemeDetail.map((detail: any) => ({
+              ...initialLoyaltySchemeDetail,
+              ...detail,
+              products: Array.isArray(detail.products) ? detail.products : [],
+              categories: Array.isArray(detail.categories) ? detail.categories : [],
+              subcategories: Array.isArray(detail.subcategories) ? detail.subcategories : [],
+            }))
+          : [];
+        formik.setValues({
+          ...initialLoyaltyScheme,
+          ...scheme,
+          schemeDetail: details,
+        });
       }
     });
   };
@@ -244,7 +264,7 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
   };
 
   const fetchProductsList = async () => {
-    let products = formik.values.schemeDetail
+    let products = (Array.isArray(formik.values.schemeDetail) ? formik.values.schemeDetail : [])
       .filter(function (rows) {
         return rows.products != null;
       })
@@ -310,6 +330,49 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
   const onRemoveClick = (index:any) => {
     const updatedDetails = formik.values.schemeDetail.filter((_, i) => i !== index);
     formik.setFieldValue("schemeDetail", updatedDetails);
+  };
+
+  const exportImportTemplate = () => {
+    const worksheet = XLSX.utils.json_to_sheet([
+      { "GG Number": "", "Percentage/Point": "" },
+    ]);
+    worksheet["!cols"] = [{ wch: 24 }, { wch: 22 }];
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+    XLSX.writeFile(workbook, "loyalty-scheme-product-template.xlsx");
+  };
+
+  const importProductExcel = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setImportError("");
+    setImportSuccess("");
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const excelRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+      const rows = excelRows.map(row => ({
+        productNo: String(row["GG Number"] ?? row["GG number"] ?? row["productNo"] ?? "").trim(),
+        points: String(row["Percentage/Point"] ?? row["Percentage"] ?? row["Point"] ?? row["points"] ?? "").trim(),
+      }));
+      const result: any = await backendResolveLoyaltySchemeImport({ rows });
+      if (result.isError) {
+        throw new Error(result.message || "Unable to import the Excel file");
+      }
+
+      const importedDetails = result.data?.schemeDetail || [];
+      const importedProducts = result.data?.products || [];
+      formik.setFieldValue("schemeDetail", importedDetails);
+      setAllProducts((current: any[]) => {
+        const byId = new Map([...current, ...importedProducts].map(product => [product._id, product]));
+        return Array.from(byId.values());
+      });
+      setImportSuccess(`${rows.length} product(s) imported. Save the scheme to apply the changes.`);
+    } catch (error: any) {
+      setImportError(error?.response?.data?.message || error?.message || "Unable to import the Excel file");
+    }
   };
   
   
@@ -675,15 +738,49 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                     </Form.Group>
                   </Col>
 
-                  <Col md={12} sm={12} xs={12} className="p-2">
-                    <h4>LoyaltyScheme Details</h4>
+                  <Col md={12} sm={12} xs={12} className="p-2 d-flex align-items-center gap-2">
+                    <h4 className="mb-0 me-2">LoyaltyScheme Details</h4>
+                    <Button
+                      type="button"
+                      variant="outline-dark"
+                      size="sm"
+                      title="Download product import template"
+                      aria-label="Download product import template"
+                      onClick={exportImportTemplate}
+                    >
+                      <Download />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline-dark"
+                      size="sm"
+                      title="Import products from Excel"
+                      aria-label="Import products from Excel"
+                      onClick={() => importFileRef.current?.click()}
+                    >
+                      <Upload />
+                    </Button>
+                    <input
+                      ref={importFileRef}
+                      type="file"
+                      accept=".xlsx,.xls"
+                      className="d-none"
+                      onChange={importProductExcel}
+                    />
                   </Col>
+                  {importError && <Col md={12}><div className="alert alert-danger py-2">{importError}</div></Col>}
+                  {importSuccess && <Col md={12}><div className="alert alert-success py-2">{importSuccess}</div></Col>}
 
                   <FieldArray
                     name="schemeDetail"
                     validateOnChange={false}
                     render={(arrayHelpers) => (
                       <div>
+                        {formik.values.schemeDetail.length === 0 && (
+                          <div className="text-muted mb-3">
+                            No products are currently configured. Import an Excel file or use the plus button to add details.
+                          </div>
+                        )}
                         {formik.values.schemeDetail.map(
                           (schemedetail, index: number) => (
                             <div key={index}>
@@ -847,9 +944,7 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                         onClick={() => {
                           const newTodos = [
                             ...formik.values.schemeDetail,
-                            {
-                              detailName: "",
-                            },
+                            { ...initialLoyaltySchemeDetail },
                           ];
                           formik.setFieldValue("schemeDetail", newTodos);
                         }}

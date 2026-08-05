@@ -1004,7 +1004,7 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                               const { value, checked } = e.target;
                               var products = formik.values.schemeDetail[
                                 selectedIndex
-                              ].products
+                              ]?.products
                                 ? JSON.parse(
                                     JSON.stringify(
                                       formik.values.schemeDetail[selectedIndex]
@@ -1030,11 +1030,11 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                             defaultChecked={
                               Array.isArray(
                                 formik.values.schemeDetail[selectedIndex]
-                                  .products
+                                  ?.products
                               )
                                 ? formik.values.schemeDetail[
                                     selectedIndex
-                                  ].products.some(
+                                  ]?.products?.some(
                                     (product) => product == item._id
                                   )
                                 : false
@@ -1087,7 +1087,7 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                             const { value, checked } = e.target;
                             var categories = formik.values.schemeDetail[
                               selectedIndex
-                            ].categories
+                            ]?.categories
                               ? JSON.parse(
                                   JSON.stringify(
                                     formik.values.schemeDetail[selectedIndex]
@@ -1111,15 +1111,15 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                             );
                           }}
                           defaultChecked={
-                            Array.isArray(
-                              formik.values.schemeDetail[selectedIndex]
-                                .categories
-                            )
-                              ? formik.values.schemeDetail[
-                                  selectedIndex
-                                ].categories.some(
-                                  (category) => category == item._id
-                                )
+                              Array.isArray(
+                                formik.values.schemeDetail[selectedIndex]
+                                  ?.categories
+                              )
+                                ? formik.values.schemeDetail[
+                                    selectedIndex
+                                  ]?.categories?.some(
+                                    (category) => category == item._id
+                                  )
                               : false
                             //Array.isArray(formik.values.schemeDetail[selectedIndex].categories) ? formik.values.schemeDetail[selectedIndex].categories.includes(item._id) : false
                           }

@@ -14,32 +14,29 @@ import { backendPostAuthLogin } from "../helpers/backend_helper"
 import { setLoginAuthToken } from "../helpers/authHelper"
 
 const Home: NextPage = () => {
+  const [errorMessage, setErrorMessage] = useState('')
   const [requestData, setRequestData] = useState({})
   const handleInputChange = (event: any) => {
     const { name, value } = event.target
     setRequestData({ ...requestData, [name]: value })
   }
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
+    setErrorMessage('');
     try {
-      //dispatch(postAuthLogin(requestData, callback))
-      backendPostAuthLogin(requestData)
-        .then(async (response) => {
-          if (!response.isError) {
-            var user = response.data;
-            setLoginAuthToken(user.token)
-            delete user['token'];
-            localStorage.setItem('authInfo', JSON.stringify(user));
-            Router.push('dashboard')
-          }
-        },
-          error => {
-
-          })
-
-    } catch (e) {
-      console.log(e, 'Error in the Login')
+      const response = await backendPostAuthLogin(requestData);
+      if (response.isError) {
+        setErrorMessage(response.message || 'Unable to sign in.');
+        return;
+      }
+      const { token, ...user } = response.data;
+      setLoginAuthToken(token);
+      localStorage.setItem('authInfo', JSON.stringify(user));
+      await Router.push('/dashboard');
+    } catch (error: any) {
+      setErrorMessage(error.response?.data?.message || 'Unable to sign in. Please try again.');
     }
   }
+
   return (
     <>
       <NonAuthLayout>
@@ -50,6 +47,7 @@ const Home: NextPage = () => {
           <Col xs={6} className="customwidth m-auto">
             <h1 className="f-w-700">Sign In</h1>
             <p className="f-18">Admin account</p>
+            {errorMessage && <div className="text-danger" role="alert">{errorMessage}</div>}
             <Row>
               <Col>
                 <Form.Group className="form-group">

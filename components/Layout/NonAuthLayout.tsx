@@ -10,7 +10,7 @@ export default function NonAuthLayout({
 }) {
   return (
     <>
-      <MobileHeader key="MobileHeader" />
+      <MobileHeader key="MobileHeader" authenticated={false} />
       <nav className="pc-sidebar ">
         <div className="navbar-wrapper">
           <div className="m-header">

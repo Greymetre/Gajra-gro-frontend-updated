@@ -5,8 +5,10 @@ import { SSRProvider } from '@react-aria/ssr'; // Or another library if applicab
 import 'bootstrap/dist/css/bootstrap.css'
 import 'styles/theme.css'
 import store from '../store/index';
+import AuthGuard from '../components/AuthGuard';
+
 const MyApp = React.forwardRef(({
-  Component, pageProps,
+  Component, pageProps, router,
 }: AppProps, ref) => {
   return (
     // <Provider store={store}>
@@ -14,7 +16,7 @@ const MyApp = React.forwardRef(({
     // </Provider>
     <SSRProvider>
       <Provider store={store}>
-        <Component {...pageProps} />
+        <AuthGuard key={router.asPath}><Component {...pageProps} /></AuthGuard>
       </Provider>
     </SSRProvider>
   );

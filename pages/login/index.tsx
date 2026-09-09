@@ -39,7 +39,7 @@ export default function Login() {
   }
   const callback = async (resp: any) => {
     if (resp.id) {
-      Router.push('dashboard')
+      Router.push('/dashboard')
     }
   }
   const handleFormSubmit = () => {
@@ -52,11 +52,11 @@ export default function Login() {
             setLoginAuthToken(user.token)
             delete user['token'];
             localStorage.setItem('authInfo', JSON.stringify(user));
-            Router.push('dashboard')
+            Router.push('/dashboard')
           }
-          console.log(response);
+          if (response.isError) setErrorMsg(response.message || 'Unable to sign in.');
         }).catch((error) => { 
-          console.log('error');
+          setErrorMsg(error.response?.data?.message || 'Unable to sign in. Please try again.');
           
       })
     } catch (error) {
@@ -80,6 +80,7 @@ export default function Login() {
         <Col xs={6} className="customwidth m-auto">
           <h1 className="f-w-700">Sign In</h1>
           <p className="f-18">Admin account</p>
+          {errorMsg && <div className="text-danger" role="alert">{errorMsg}</div>}
           <Row>
             <Col>
               <Form.Group className="form-group">

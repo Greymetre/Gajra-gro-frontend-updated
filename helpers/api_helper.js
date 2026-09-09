@@ -1,6 +1,6 @@
 //nvm install v18.15.0
 import axios from "axios"
-import { getAuthToken } from "./authHelper"
+import { getValidAuthToken, removeAuthToken } from "./authHelper"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "https://apis.fieldkonnect.io/api"
 
@@ -8,14 +8,17 @@ const axiosApi = axios.create({
   baseURL: API_URL,
 })
 axiosApi.interceptors.request.use(async function (config) {
-  const token = await getAuthToken();
-  config.headers.Authorization = `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2OGY2ZGM0MDJiYmE4ZDY1MDlhYWMzNzciLCJmaXJzdE5hbWUiOiJHYWplbmRyYSIsImxhc3ROYW1lIjoiUmFqcHV0IiwicGhvbmVDb2RlIjoiKzkxIiwibW9iaWxlIjo5NzEzMTEzMjgwLCJlbWFpbCI6ImdhamVuZHJhQGdyZXltZXRyZS5pbyIsInVzZXJUeXBlIjoiQWRtaW4iLCJjYXRlZ29yaWVzIjpbIjY0MTQzZjQ2ZmY0YWRkNWUwMjBlNjZkNyIsIjY0MTQzZjQ2ZmY0YWRkNWUwMjBlNjZkOCIsIjY0MTQzZjQ2ZmY0YWRkNWUwMjBlNjZkOSJdLCJpYXQiOjE3NzY1MTE2MzYsImV4cCI6MTgwODA0NzYzNn0.TBvTlySHa_0S9_1bMqZuLlhLnQc7KcXLp_CSMSRUqG4`;
+  const token = getValidAuthToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 axiosApi.interceptors.response.use(
   response => response,
-  error => Promise.reject(error)
+  async error => {
+    if (error.response?.status === 401) await removeAuthToken();
+    return Promise.reject(error);
+  }
 )
 
 export async function get(url, config = {}) {
@@ -51,16 +54,11 @@ export async function getBaseUrl() {
 }
 
 export async function submitFormData(url, data, method) {
-  const authToken = await getAuthToken();
-  const token2 = authToken ? JSON.parse(authToken) : ''
-  return await axios({
-    method: method,
-    url: API_URL+url,
-    data: data,
-    headers: {
-      'Content-Type': `multipart/form-data;`,
-      'Authorization': `Bearer ${token2}`
-    },
+  return axiosApi({
+    method,
+    url,
+    data,
+    headers: typeof FormData !== 'undefined' && data instanceof FormData
+      ? {} : { 'Content-Type': 'multipart/form-data' },
   }).then(response => response.data)
 }
-

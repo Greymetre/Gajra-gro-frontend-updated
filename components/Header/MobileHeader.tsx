@@ -18,7 +18,7 @@ import {
   Tab,
 } from "react-bootstrap";
 import SidebarMenu from "../Sidebar/SidebarMenu";
-function MobileHeader() {
+function MobileHeader({ authenticated = true }: { authenticated?: boolean }) {
   const [show, setShow] = useState(false);
   return (
     <>
@@ -56,13 +56,20 @@ function MobileHeader() {
       <div className={"pc-sidebar " + (show ? "mob-sidebar-active" : "")}>
         <div className="navbar-wrapper">
           <div className="m-header">
-            <Link href="/dashboard" className="b-brand">
+            <Link href={authenticated ? "/dashboard" : "/"} className="b-brand">
               <Image src={darklogo} alt="Gajragear" className="logo logo-lg" />
             </Link>
           </div>
           <div className="navbar-content">
             <Nav className="pc-navbar" as="ul">
-              <SidebarMenu key="SidebarMenu" icon={true} />
+              {authenticated ? (
+                <SidebarMenu key="SidebarMenu" icon={true} />
+              ) : (
+                <>
+                  <Nav.Item><Link className="pc-link" href="/">Sign In</Link></Nav.Item>
+                  <Nav.Item><Link className="pc-link" href="/catalogue">Catalogue</Link></Nav.Item>
+                </>
+              )}
             </Nav>
           </div>
         </div>

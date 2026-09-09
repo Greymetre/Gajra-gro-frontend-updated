@@ -1,3 +1,5 @@
+import { useRouter } from 'next/router'
+import { getAuthToken, removeAuthToken } from '../../helpers/authHelper'
 import React, { useState, useEffect } from 'react'
 import { Nav, Navbar } from 'react-bootstrap'
 import Link from 'next/link'
@@ -16,24 +18,45 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
     const [permissionData, setPermissionData] = useState<string[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const dispatch = useDispatch();
-    const fetchPermissionData = async () => {
-        setIsLoading(true)
-        await backendGetUserPermissions().then(async(res) => {
-            if (!res.isError) {
-              setPermissionData(
-  Array.isArray(res.data?.canAccess) ? res.data.canAccess : []
-)
-              dispatch({
-                type: 'GET_PERMISSION',
-                payload: res.data?.canAccess
-              })
-              setIsLoading(false)
-            }
-        })
-    }
+    const router = useRouter();
+    const [errorMessage, setErrorMessage] = useState('');
     useEffect(() => {
-      fetchPermissionData()
-    }, [])
+      let cancelled = false;
+      const fetchPermissionData = async () => {
+        setIsLoading(true);
+        try {
+          const storedToken = await getAuthToken();
+          let token: unknown;
+          try { token = storedToken ? JSON.parse(storedToken) : null; } catch { token = null; }
+          if (typeof token !== 'string' || !token) {
+            if (!cancelled) {
+              setPermissionData([]);
+              dispatch({ type: 'GET_PERMISSION', payload: [] });
+            }
+            return;
+          }
+          const res = await backendGetUserPermissions();
+          if (cancelled) return;
+          const permissions = !res.isError && Array.isArray(res.data?.canAccess) ? res.data.canAccess : [];
+          setPermissionData(permissions);
+          dispatch({ type: 'GET_PERMISSION', payload: permissions });
+        } catch (error: any) {
+          if (cancelled) return;
+          setPermissionData([]);
+          dispatch({ type: 'GET_PERMISSION', payload: [] });
+          if (error.response?.status === 401) {
+            await removeAuthToken();
+            void router.replace('/').catch(() => {});
+          } else {
+            setErrorMessage('Unable to load the menu. Please refresh the page.');
+          }
+        } finally {
+          if (!cancelled) setIsLoading(false);
+        }
+      };
+      void fetchPermissionData();
+      return () => { cancelled = true; };
+    }, [dispatch, router]);
 
   const manus = [
     {
@@ -166,6 +189,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
   
   return (
     <>
+      {errorMessage && <li className="pc-item" role="alert">{errorMessage}</li>}
       {manus.map((item : SidebarManuInterface, index:number) => {
         if(Array.isArray(permissionData) && item.canAccess !== '' && permissionData.includes(item.canAccess)) {
         return <Nav.Item

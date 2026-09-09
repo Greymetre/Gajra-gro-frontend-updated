@@ -4,7 +4,7 @@
 //  link by lemosys testing server
 // export const IMAGE_URL = process.env.IMAGE_URL || 'http://111.118.252.246:4001/'
 // new link by lemosys live server
-export const IMAGE_URL = process.env.IMAGE_URL || 'https://s3.ap-south-1.amazonaws.com/gajragro2.fieldkonnect.io/'
+export const IMAGE_URL = (process.env.IMAGE_URL || 'https://gajragro.fieldkonnect.io/').replace(/\/+$/, '') + '/'
 // export const IMAGE_URL = process.env.IMAGE_URL || 'https://apis.fieldkonnect.io/'
 
 

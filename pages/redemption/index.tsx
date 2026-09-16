@@ -23,6 +23,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
+import PaginationNav from "../../components/Common/PaginationNav";
 import {
   backendGetAllRedemptions,
   backendDeleteRedemption,
@@ -130,6 +131,11 @@ export default function Redemption() {
   const [filterData, setFilterData] = useState<RedemptionFilterInterface>(
     initialFilterRedemption
   );
+  // Changing a filter starts again from the first page; both updates render together.
+  const updateFilterData = (data: typeof filterData) => {
+    setFilterData(data);
+    setPaginationData((prev) => ({ ...prev, currentPage: 1 }));
+  };
   const [redeemTypeData, setRedeemTypeData] = useState([]);
   const [requestFileData, setRequestFileData] = useState<KeyValue[]>([]);
   const toggleShowCreateForm = () => {
@@ -209,7 +215,7 @@ export default function Redemption() {
 
   const onHandleDateRange = (dates: any) => {
     const [start, end] = dates;
-    setFilterData({
+    updateFilterData({
       ...filterData,
       startDate: new Date(start),
       endDate: new Date(end),
@@ -334,6 +340,7 @@ export default function Redemption() {
                   onChange={(e: any) => {
                     setPaginationData({
                       ...paginationData,
+                      currentPage: 1,
                       recordPerPage: e.target.value,
                     });
                   }}
@@ -343,6 +350,8 @@ export default function Redemption() {
                   <option value={500}>500</option>
                   <option value={1000}>1000</option>
                   <option value={2000}>2000</option>
+                  <option value={5000}>5000</option>
+                  <option value={10000}>10000</option>
                 </Form.Select>
               </Form.Group>
             </Col>
@@ -355,6 +364,7 @@ export default function Redemption() {
                   onChange={(e) => {
                     setPaginationData({
                       ...paginationData,
+                      currentPage: 1,
                       search: e.target.value,
                     });
                   }}
@@ -416,7 +426,7 @@ export default function Redemption() {
                                 type="date"
                                 name="startDate"
                                 onChange={(e) => {
-                                  setFilterData({
+                                  updateFilterData({
                                     ...filterData,
                                     startDate: e.target.value,
                                   });
@@ -426,7 +436,7 @@ export default function Redemption() {
                                 autoComplete="off"
                                 placeholder="Start Date"
                               />
-                              {/* <DatePicker selected={filterData.startDate} onChange={(date: any) => { setFilterData({ ...filterData, startDate: new Date(date) }) }} /> */}
+                              {/* <DatePicker selected={filterData.startDate} onChange={(date: any) => { updateFilterData({ ...filterData, startDate: new Date(date) }) }} /> */}
                             </Col>
                           </Form.Group>
                           <Form.Group
@@ -443,7 +453,7 @@ export default function Redemption() {
                                 type="date"
                                 name="endDate"
                                 onChange={(e) => {
-                                  setFilterData({
+                                  updateFilterData({
                                     ...filterData,
                                     endDate: e.target.value,
                                   });
@@ -454,7 +464,7 @@ export default function Redemption() {
                                 placeholder="End Date"
                               />
                               {/* <DatePicker selected={filterData.endDate} onChange={(date: any) => { 
-                                setFilterData({ ...filterData, endDate: new Date(date) }) }} /> */}
+                                updateFilterData({ ...filterData, endDate: new Date(date) }) }} /> */}
                             </Col>
                           </Form.Group>
 
@@ -466,7 +476,7 @@ export default function Redemption() {
                               value={customerTypeOptions.find(option => option.value === filterData?.customerType?.[0] ?? '')}
 
                               onChange={(e: any) => {
-                                setFilterData({
+                                updateFilterData({
                                   ...filterData,
                                   customerType: [e.value]  // Directly access value from the selected option
                                 });
@@ -508,7 +518,7 @@ export default function Redemption() {
                                             return item !== value;
                                           });
                                         }
-                                        setFilterData({
+                                        updateFilterData({
                                           ...filterData,
                                           type: Array.from(new Set(types)),
                                         });
@@ -554,7 +564,7 @@ export default function Redemption() {
                                         return item !== value;
                                       });
                                     }
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       status: Array.from(new Set(status)),
                                     });
@@ -591,7 +601,7 @@ export default function Redemption() {
                                         return item !== value;
                                       });
                                     }
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       status: Array.from(new Set(status)),
                                     });
@@ -628,7 +638,7 @@ export default function Redemption() {
                                         return item !== value;
                                       });
                                     }
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       status: Array.from(new Set(status)),
                                     });
@@ -665,7 +675,7 @@ export default function Redemption() {
                                         return item !== value;
                                       });
                                     }
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       status: Array.from(new Set(status)),
                                     });
@@ -702,7 +712,7 @@ export default function Redemption() {
                                         return item !== value;
                                       });
                                     }
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       status: Array.from(new Set(status)),
                                     });
@@ -739,7 +749,7 @@ export default function Redemption() {
                                         return item !== value;
                                       });
                                     }
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       status: Array.from(new Set(status)),
                                     });
@@ -791,6 +801,17 @@ export default function Redemption() {
               </Form.Group> */}
               </Col>
             ) : null}
+            <Col xl={12} sm={12} xs={12} className="mb-2">
+              <PaginationNav
+                align="start"
+                currentPage={paginationData.currentPage}
+                totalPages={resPaginateData.totalPages}
+                disabled={isLoading}
+                onPageChange={(page) =>
+                  setPaginationData({ ...paginationData, currentPage: page })
+                }
+              />
+            </Col>
             <Card className="flat-card p-0">
               <div className="row-table">
                 <Col sm={12} md={12}>
@@ -889,55 +910,6 @@ export default function Redemption() {
                 <Spinner animation="border" />
               </Col>
             ) : null}
-          </Row>
-          <Row>
-            <Col xl={12} sm={12} xs={12} className="text-end">
-              <nav aria-label="Page navigation example">
-                <ul className="pagination justify-content-end">
-                  <li
-                    className={`page-item ${paginationData.currentPage === 1 ? "disabled" : ""
-                      }`}
-                  >
-                    <a
-                      className="page-link"
-                      onClick={() => {
-                        setPaginationData({
-                          ...paginationData,
-                          currentPage: paginationData.currentPage - 1,
-                        });
-                        router.push(
-                          `/redemption/?page=${paginationData.currentPage - 1}`
-                        );
-                      }}
-                    >
-                      Previous
-                    </a>
-                  </li>
-
-                  <li
-                    className={`page-item ${paginationData.currentPage === resPaginateData.totalPages
-                        ? "disabled"
-                        : ""
-                      }`}
-                  >
-                    <a
-                      className="page-link"
-                      onClick={() => {
-                        setPaginationData({
-                          ...paginationData,
-                          currentPage: paginationData.currentPage + 1,
-                        });
-                        router.push(
-                          `/redemption/?page=${paginationData.currentPage + 1}`
-                        );
-                      }}
-                    >
-                      Next
-                    </a>
-                  </li>
-                </ul>
-              </nav>
-            </Col>
           </Row>
         </Col>
       </Row>

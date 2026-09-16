@@ -517,6 +517,7 @@ export const backendGetYoutubeShorts = () =>
 export const backendGetAllDamageCoupons = (data) => post(url.MODULE_DAMAGEQR, data);
 export const backendGetAllDamageCouponsProject = (data) => post(url.MODULE_DAMAGEQRPRODUCT, data);
 export const backendGetApprovedQR = (data) => post(url.MODULE_APPROVEDQR, data);
+export const backendGetDamageEntryImage = (data) => post(url.MODULE_DAMAGEENTRYIMAGE, data);
 
 export const backendPostAddNewDAMAGEENTRIES = (data) => submitFormData(url.MODULE_ADDDAMAGEENTRIES, data, "POST");
 export const backendPostAddNewDAMAGEENTRIESIntoTransaction = (data) => post(url.MODULE_ADDDAMAGEENTRIESINTOTRANSACTION, data);

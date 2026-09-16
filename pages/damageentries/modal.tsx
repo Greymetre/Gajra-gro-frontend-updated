@@ -16,6 +16,7 @@ import {
 import { Card, Col, Image, Row, Spinner, Table } from 'react-bootstrap';
 import ImageManipulator from './imageZoom';
 import ImageViewer from './imageZoom';
+import DamageQrScanner from '../../components/Common/DamageQrScanner';
 import { CouponSearchFilterInterface, CouponSearchInterface, initialFilterCouponSearch } from '../../interfaces/coupon.interface';
 import { TransactionDetailViewInterface } from '../../interfaces/transaction.interface';
 import { initialResPaginate, initialTransPagination, PaginationTransInterface, ResPaginateInterface } from '../../interfaces/pagination.interface';
@@ -483,8 +484,15 @@ const [searchTransaction , setSearchTransaction] = useState('');
             </Row>
             </Col>
             <Col lg={6} >
-            <div className='my-3  d-flex justify-content-center  ' style={{  position:"relative"}}  >
-            <ImageViewer src={images[0]} />
+            <div className='my-3  d-flex flex-column align-items-center  ' style={{  position:"relative"}}  >
+            <DamageQrScanner
+              key={data?._id}
+              invalidCouponid={data?._id}
+              images={images}
+              onDetected={(couponCode) => setSearchCoupon(couponCode)}
+            >
+              <ImageViewer src={images[0]} />
+            </DamageQrScanner>
             </div>
             </Col>
             </Row>

@@ -138,6 +138,7 @@ export const IMPORT_QR_UPDATE = "/user/packing-list/import-qr-update";
 export const MODULE_DAMAGEQR = "/user/transactions/allInvalidCoupon";
 export const MODULE_DAMAGEQRPRODUCT = "/user/transactions/productDropdown";
 export const MODULE_APPROVEDQR = "/user/transactions/updateCouponStatus";
+export const MODULE_DAMAGEENTRYIMAGE = "/user/transactions/damageEntryImage";
 export const MODULE_ADDDAMAGEENTRIES = "/loyalty/transactions/add-invalid";
 export const MODULE_ADDDAMAGEENTRIESINTOTRANSACTION = "/loyalty/transactions/coupon-scan-by-admin";
 

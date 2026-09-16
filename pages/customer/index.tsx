@@ -22,6 +22,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
+import PaginationNav from "../../components/Common/PaginationNav";
 import {
   backendCustomerImport,
   backendDeleteCustomer,
@@ -138,6 +139,11 @@ const Customer = React.forwardRef((props, ref) => {
   const [filterData, setFilterData] = useState<CustomerFilterInterface>(
     initialFilterCustomer
   );
+  // Changing a filter starts again from the first page; both updates render together.
+  const updateFilterData = (data: typeof filterData) => {
+    setFilterData(data);
+    setPaginationData((prev) => ({ ...prev, currentPage: 1 }));
+  };
   const [search, setSearch] = useState("");
   const customerList = useSelector((state: any) => state?.customers?.customers);
   const [customerData, setCustomerData] = useState<
@@ -225,7 +231,7 @@ const Customer = React.forwardRef((props, ref) => {
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const { name, value, type } = event.target;
-    setFilterData({
+    updateFilterData({
       ...filterData,
       [name]: type === "number" ? parseInt(value) : value,
     });
@@ -345,6 +351,7 @@ const Customer = React.forwardRef((props, ref) => {
                   onChange={(e: any) => {
                     setPaginationData({
                       ...paginationData,
+                      currentPage: 1,
                       recordPerPage: e.target.value,
                     });
                   }}
@@ -354,6 +361,8 @@ const Customer = React.forwardRef((props, ref) => {
                   <option value={500}>{500}</option>
                   <option value={1000}>{1000}</option>
                   <option value={2000}>{2000}</option>
+                  <option value={5000}>5000</option>
+                  <option value={10000}>10000</option>
                 </Form.Select>
               </Form.Group>
             </Col>
@@ -365,6 +374,7 @@ const Customer = React.forwardRef((props, ref) => {
                   onChange={(e) => {
                     setPaginationData({
                       ...paginationData,
+                      currentPage: 1,
                       search: e.target.value,
                     });
                   }}
@@ -446,6 +456,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     onChange={(e) => {
                                       setPaginationData({
                                         ...paginationData,
+                                        currentPage: 1,
                                         startDate: e.target.value,
                                       });
                                     }}
@@ -463,6 +474,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     onChange={(e) => {
                                       setPaginationData({
                                         ...paginationData,
+                                        currentPage: 1,
                                         endDate: e.target.value,
                                       });
                                     }}
@@ -492,7 +504,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   label="Existing"
                                   onChange={(e) => {
                                     const { value, checked } = e.target;
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       existing: checked,
                                     });
@@ -511,7 +523,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   label="Self"
                                   onChange={(e) => {
                                     const { value, checked } = e.target;
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       self: checked,
                                     });
@@ -550,6 +562,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     condition: Array.from(new Set(condition)),
                                   });
                                 }}
@@ -588,6 +601,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     condition: Array.from(new Set(condition)),
                                   });
                                 }}
@@ -626,6 +640,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     condition: Array.from(new Set(condition)),
                                   });
                                 }}
@@ -664,6 +679,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     condition: Array.from(new Set(condition)),
                                   });
                                 }}
@@ -702,6 +718,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     condition: Array.from(new Set(condition)),
                                   });
                                 }}
@@ -730,7 +747,7 @@ const Customer = React.forwardRef((props, ref) => {
   options={customerTypeOptions}
   value={customerTypeOptions.find(option => option.value === filterData?.customerType[0])}
   onChange={(e :any) => {
-    setFilterData({
+    updateFilterData({
       ...filterData,
       customerType: [e.value]  // Directly access value from the selected option
     });
@@ -765,6 +782,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     onChange={(e) => {
                                       setPaginationData({
                                         ...paginationData,
+                                        currentPage: 1,
                                         startDate: e.target.value,
                                       });
                                     }}
@@ -781,6 +799,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     onChange={(e) => {
                                       setPaginationData({
                                         ...paginationData,
+                                        currentPage: 1,
                                         endDate: e.target.value,
                                       });
                                     }}
@@ -796,7 +815,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     type="date"
                                     name="startDate"
                                     onChange={(e) => {
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         startDate: e.target.value,
                                       });
@@ -813,7 +832,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     type="date"
                                     name="endDate"
                                     onChange={(e) => {
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         endDate: e.target.value,
                                       });
@@ -855,6 +874,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     condition: Array.from(new Set(condition)),
                                   });
                                 }}
@@ -891,7 +911,7 @@ const Customer = React.forwardRef((props, ref) => {
                                       return item !== value;
                                     });
                                   }
-                                  setFilterData({
+                                  updateFilterData({
                                     ...filterData,
                                     pointType: Array.from(new Set(pointType)),
                                   });
@@ -932,6 +952,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     pointType: Array.from(new Set(pointType)),
                                   });
                                 }}
@@ -970,6 +991,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     condition: Array.from(new Set(condition)),
                                   });
                                 }}
@@ -1009,6 +1031,7 @@ const Customer = React.forwardRef((props, ref) => {
                                 }
                                 setPaginationData({
                                   ...paginationData,
+                                  currentPage: 1,
                                   condition: Array.from(new Set(condition)),
                                 });
                               }}
@@ -1042,7 +1065,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   type="date"
                                   name="startDate"
                                   onChange={(e) => {
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       startDate: e.target.value,
                                     });
@@ -1059,7 +1082,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   type="date"
                                   name="endDate"
                                   onChange={(e) => {
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       endDate: e.target.value,
                                     });
@@ -1090,7 +1113,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   label="Existing"
                                   onChange={(e) => {
                                     const { value, checked } = e.target;
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       existing: checked,
                                     });
@@ -1109,7 +1132,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   label="Self"
                                   onChange={(e) => {
                                     const { value, checked } = e.target;
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       self: checked,
                                     });
@@ -1138,7 +1161,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   onChange={async (e) => {
                                     const { value, checked } = e.target;
                                     if (checked) {
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         Pending: "",
                                       });
@@ -1159,7 +1182,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   onChange={async (e) => {
                                     const { value, checked } = e.target;
                                     if (checked) {
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         Pending: "Pending",
                                       });
@@ -1179,7 +1202,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   onChange={async (e) => {
                                     const { value, checked } = e.target;
                                     if (checked) {
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         Rejected: "Rejected",
                                       });
@@ -1199,7 +1222,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     if (checked) {
                                       const types = filterData.Pending;
                                       types.push(value);
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         Pending: types,
                                       });
@@ -1208,7 +1231,7 @@ const Customer = React.forwardRef((props, ref) => {
                                         await filterData.Pending.filter(
                                           (e: string) => e !== value
                                         );
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         Pending: types,
                                       });
@@ -1233,7 +1256,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     if (checked) {
                                       // const types = filterData.Incomplete;
                                       // types.push(value);
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         Incomplete: "Incomplete",
                                       });
@@ -1243,14 +1266,14 @@ const Customer = React.forwardRef((props, ref) => {
                                     //     await filterData.Incomplete.filter(
                                     //       (e: string) => e !== value
                                     //     );
-                                    //   setFilterData({
+                                    //   updateFilterData({
                                     //     ...filterData,
                                     //     Incomplete: types,
                                     //   });
                                     // }
                                   }}
                                   // onChange={(e) => {
-                                  //   setFilterData({
+                                  //   updateFilterData({
                                   //     ...filterData,
                                   //     Incomplete: e.target.value,
                                   //   });
@@ -1264,7 +1287,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   name="Incomplete"
                                   type="text"
                                   onChange={(e) => {
-                                    setFilterData({
+                                    updateFilterData({
                                       ...filterData,
                                       Incomplete: e.target.value,
                                     });
@@ -1285,7 +1308,7 @@ const Customer = React.forwardRef((props, ref) => {
                                     if (checked) {
                                       // const types = filterData.Incomplete;
                                       // types.push(value);
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         Approved: "Approved",
                                       });
@@ -1302,7 +1325,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   //   if (checked) {
                                   //     const types = filterData.Approved;
                                   //     types.push(value);
-                                  //     setFilterData({
+                                  //     updateFilterData({
                                   //       ...filterData,
                                   //       status: types,
                                   //     });
@@ -1311,7 +1334,7 @@ const Customer = React.forwardRef((props, ref) => {
                                   //       await filterData.Approved.filter(
                                   //         (e: string) => e !== value
                                   //       );
-                                  //     setFilterData({
+                                  //     updateFilterData({
                                   //       ...filterData,
                                   //       Pending: types,
                                   //     });
@@ -1355,7 +1378,7 @@ const Customer = React.forwardRef((props, ref) => {
                                         return item !== value
                                       })
                                     }
-                                    setFilterData({ ...filterData, status: Array.from(new Set(status)) })
+                                    updateFilterData({ ...filterData, status: Array.from(new Set(status)) })
                                   }}
                                   defaultChecked={
                                     Array.isArray(filterData.status) ? filterData.status.some((item) => item == "Pending") : false
@@ -1380,7 +1403,7 @@ const Customer = React.forwardRef((props, ref) => {
                                         return item !== value
                                       })
                                     }
-                                    setFilterData({ ...filterData, status: Array.from(new Set(status)) })
+                                    updateFilterData({ ...filterData, status: Array.from(new Set(status)) })
                                   }}
                                   defaultChecked={
                                     Array.isArray(filterData.status) ? filterData.status.some((item) => item == "Approved") : false
@@ -1405,7 +1428,7 @@ const Customer = React.forwardRef((props, ref) => {
                                         return item !== value
                                       })
                                     }
-                                    setFilterData({ ...filterData, status: Array.from(new Set(status)) })
+                                    updateFilterData({ ...filterData, status: Array.from(new Set(status)) })
                                   }}
                                   defaultChecked={
                                     Array.isArray(filterData.status) ? filterData.status.some((item) => item == "Reject") : false
@@ -1430,7 +1453,7 @@ const Customer = React.forwardRef((props, ref) => {
                                         return item !== value
                                       })
                                     }
-                                    setFilterData({ ...filterData, status: Array.from(new Set(status)) })
+                                    updateFilterData({ ...filterData, status: Array.from(new Set(status)) })
                                   }}
                                   defaultChecked={
                                     Array.isArray(filterData.status) ? filterData.status.some((item) => item == "Success") : false
@@ -1455,7 +1478,7 @@ const Customer = React.forwardRef((props, ref) => {
                                         return item !== value
                                       })
                                     }
-                                    setFilterData({ ...filterData, status: Array.from(new Set(status)) })
+                                    updateFilterData({ ...filterData, status: Array.from(new Set(status)) })
                                   }}
                                   defaultChecked={
                                     Array.isArray(filterData.status) ? filterData.status.some((item) => item == "Fail") : false
@@ -1465,6 +1488,17 @@ const Customer = React.forwardRef((props, ref) => {
                             </Row>
                           </div> */}
 
+        <Col xl={12} sm={12} xs={12} className="mb-2">
+          <PaginationNav
+            align="start"
+            currentPage={paginationData.currentPage}
+            totalPages={resPaginateData.totalPages}
+            disabled={isLoading}
+            onPageChange={(page) =>
+              setPaginationData({ ...paginationData, currentPage: page })
+            }
+          />
+        </Col>
         {Array.isArray(customerData) &&
           customerData.map((item, index) => {
             return (
@@ -1576,58 +1610,6 @@ const Customer = React.forwardRef((props, ref) => {
             <Spinner animation="border" />
           </Col>
         ) : null}
-      </Row>
-
-      <Row>
-        <Col xl={12} sm={12} xs={12} className="mb-3 text-end">
-          <nav aria-label="Page navigation example">
-            <ul className="pagination justify-content-end">
-              <li
-                className={`page-item ${
-                  paginationData.currentPage === 1 ? "disabled" : ""
-                }`}
-              >
-                <a
-                  className="page-link"
-                  onClick={() => {
-                    setPaginationData({
-                      ...paginationData,
-                      currentPage: paginationData.currentPage - 1,
-                    });
-                    router.push(
-                      `/customer/?page=${paginationData.currentPage - 1}`
-                    );
-                  }}
-                >
-                  Previous
-                </a>
-              </li>
-
-              <li
-                className={`page-item ${
-                  paginationData.currentPage === resPaginateData.totalPages
-                    ? "disabled"
-                    : ""
-                }`}
-              >
-                <a
-                  className="page-link"
-                  onClick={() => {
-                    setPaginationData({
-                      ...paginationData,
-                      currentPage: paginationData.currentPage + 1,
-                    });
-                    router.push(
-                      `/customer/?page=${paginationData.currentPage + 1}`
-                    );
-                  }}
-                >
-                  Next
-                </a>
-              </li>
-            </ul>
-          </nav>
-        </Col>
       </Row>
     </Layout>
   );

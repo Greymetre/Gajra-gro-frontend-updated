@@ -25,6 +25,7 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
+import PaginationNav from "../../components/Common/PaginationNav";
 import {
   backendGetAllTransactions,
   backendDeleteTransaction,
@@ -98,6 +99,11 @@ const Transaction = React.forwardRef((props, ref) => {
   const [filterData, setFilterData] = useState<TraansactionFilterInterface>(
     initialFiltertransaction
   );
+  // Changing a filter starts again from the first page; both updates render together.
+  const updateFilterData = (data: typeof filterData) => {
+    setFilterData(data);
+    setPaginationData((prev) => ({ ...prev, currentPage: 1 }));
+  };
   const [requestFileData, setRequestFileData] = useState<KeyValue[]>([]);
   const [requestTransactionFileData, setRequestTransactionFileData] = useState<
     KeyValue[]
@@ -320,6 +326,7 @@ const Transaction = React.forwardRef((props, ref) => {
                   onChange={(e: any) => {
                     setPaginationData({
                       ...paginationData,
+                      currentPage: 1,
                       recordPerPage: e.target.value,
                     });
                   }}
@@ -330,6 +337,8 @@ const Transaction = React.forwardRef((props, ref) => {
                   <option value={500}>{500}</option>
                   <option value={1000}>{1000}</option>
                   <option value={2000}>{2000}</option>
+                  <option value={5000}>5000</option>
+                  <option value={10000}>10000</option>
                 </Form.Select>
               </Form.Group>
             </Col>
@@ -341,6 +350,7 @@ const Transaction = React.forwardRef((props, ref) => {
                   onChange={(e: any) => {
                     setPaginationData({
                       ...paginationData,
+                      currentPage: 1,
                       pointType: e.target.value,
                     });
                   }}
@@ -366,6 +376,7 @@ const Transaction = React.forwardRef((props, ref) => {
                     onChange={(e) => {
                       setPaginationData({
                         ...paginationData,
+                        currentPage: 1,
                         search: e.target.value,
                       });
                     }}
@@ -422,6 +433,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                     onChange={(e) => {
                                       setPaginationData({
                                         ...paginationData,
+                                        currentPage: 1,
                                         startDate: e.target.value,
                                       });
                                     }}
@@ -438,6 +450,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                     onChange={(e) => {
                                       setPaginationData({
                                         ...paginationData,
+                                        currentPage: 1,
                                         endDate: e.target.value,
                                       });
                                     }}
@@ -453,7 +466,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                     type="date"
                                     name="startDate"
                                     onChange={(e) => {
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         startDate: e.target.value,
                                       });
@@ -470,7 +483,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                     type="date"
                                     name="endDate"
                                     onChange={(e) => {
-                                      setFilterData({
+                                      updateFilterData({
                                         ...filterData,
                                         endDate: e.target.value,
                                       });
@@ -494,6 +507,7 @@ const Transaction = React.forwardRef((props, ref) => {
   onChange={(e :any) => {
     setPaginationData({
       ...paginationData,
+      currentPage: 1,
       customerType: [e.value],
     });
   }}
@@ -529,6 +543,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     pointType: Array.from(new Set(pointType)),
                                   });
                                 }}
@@ -568,6 +583,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     pointType: Array.from(new Set(pointType)),
                                   });
                                 }}
@@ -607,6 +623,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     pointType: Array.from(new Set(pointType)),
                                   });
                                 }}
@@ -645,6 +662,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                   }
                                   setPaginationData({
                                     ...paginationData,
+                                    currentPage: 1,
                                     pointType: Array.from(new Set(pointType)),
                                   });
                                 }}
@@ -684,6 +702,7 @@ const Transaction = React.forwardRef((props, ref) => {
                                 }
                                 setPaginationData({
                                   ...paginationData,
+                                  currentPage: 1,
                                   pointType: Array.from(new Set(pointType)),
                                 });
                               }}
@@ -772,6 +791,17 @@ const Transaction = React.forwardRef((props, ref) => {
               </Row>
             )}
 
+            <Col xl={12} sm={12} xs={12} className="mb-2">
+              <PaginationNav
+                align="start"
+                currentPage={paginationData.currentPage}
+                totalPages={resPaginateData.totalPages}
+                disabled={isLoading}
+                onPageChange={(page) =>
+                  setPaginationData({ ...paginationData, currentPage: page })
+                }
+              />
+            </Col>
             <Card className="flat-card p-0">
               <div className="row-table">
                 <Col sm={12} md={12}>
@@ -881,64 +911,6 @@ const Transaction = React.forwardRef((props, ref) => {
                             <Spinner animation="border" />
                           </Col>
                         ) : null}
-                        <Col xl={12} sm={12} xs={12} className="mb-3 text-end">
-                          <nav aria-label="Page navigation example">
-                            <ul className="pagination justify-content-end">
-                              <li
-                                className={`page-item ${
-                                  paginationData.currentPage === 1
-                                    ? "disabled"
-                                    : ""
-                                }`}
-                              >
-                                <a
-                                  className="page-link"
-                                  onClick={() => {
-                                    setPaginationData({
-                                      ...paginationData,
-                                      currentPage:
-                                        paginationData.currentPage - 1,
-                                    });
-                                    router.push(
-                                      `/transaction/?page=${
-                                        paginationData.currentPage - 1
-                                      }`
-                                    );
-                                  }}
-                                >
-                                  Previous
-                                </a>
-                              </li>
-
-                              <li
-                                className={`page-item ${
-                                  paginationData.currentPage ===
-                                  resPaginateData.totalPages
-                                    ? "disabled"
-                                    : ""
-                                }`}
-                              >
-                                <a
-                                  className="page-link"
-                                  onClick={() => {
-                                    setPaginationData({
-                                      ...paginationData,
-                                      currentPage:
-                                        paginationData.currentPage + 1,
-                                    });
-                                    router.push(
-                                      `/transaction/?page=${
-                                        paginationData.currentPage + 1
-                                      }`
-                                    );
-                                  }}
-                                >
-                                  Next
-                                </a>
-                              </li>
-                            </ul>
-                          </nav>
-                        </Col>
                       </div>
                     </div>
                   </div>

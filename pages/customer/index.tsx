@@ -219,7 +219,16 @@ const Customer = React.forwardRef((props, ref) => {
               day: "numeric",
             })
           : "";
-        return customer;
+        // location is stored as { coordinates: [longitude, latitude] }; xlsx can't write objects
+        const { location, ...rest } = customer;
+        const coordinates = location?.coordinates;
+        const hasCoordinates =
+          Array.isArray(coordinates) && coordinates.length >= 2 && (coordinates[0] || coordinates[1]);
+        return {
+          ...rest,
+          latitude: hasCoordinates ? Number(coordinates[1]) : "",
+          longitude: hasCoordinates ? Number(coordinates[0]) : "",
+        };
       })
     );
     var wb = XLSX.utils.book_new(),

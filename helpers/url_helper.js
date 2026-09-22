@@ -16,6 +16,7 @@ export const GET_USER_DROPDOWN_LIST = "/user/users/dropdown";
 export const MODULE_CUSTOMER = "/user/customers";
 export const POST_CUSTOMER_STATUS = "/user/customers/updateStatus";
 export const GET_CUSTOMER_DROPDOWN_LIST = "/user/customers/dropdown";
+export const GET_PARENT_CUSTOMER_DROPDOWN_LIST = "/user/customers/parentDropdown";
 export const GET_CUSTOMER_DROPDOWN_ = "/remark";
 
 export const GET_ALL_CUSTOMER = "/user/customers/all";

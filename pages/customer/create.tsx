@@ -38,6 +38,7 @@ import { objectAppendIntoformData } from "../../utils/utility";
 import { Formik, FormikHelpers, useFormik, useFormikContext } from "formik";
 import * as yup from "yup";
 import SelectCustomerType from "../../components/InputFields/SelectCustomerType";
+import SelectParentCustomer from "../../components/InputFields/SelectParentCustomer";
 import SelectRemarkList from "./remark";
 
 import RemarkList from "./remark";
@@ -64,6 +65,7 @@ const schema = yup.object().shape({
     .min(3)
     .max(50)
     .required("customerType Name is required"),
+  parentName: yup.string().max(100, "Parent name is too long"),
   address: yup.object({
     state: yup.string().min(3).max(50).required("State is required"),
     city: yup.string().min(3).max(50).required("City is required"),
@@ -422,6 +424,18 @@ export default function CustomerSave() {
                       {formik.errors.customerType && (
                         <div className="text-danger">
                           {formik.errors.customerType}
+                        </div>
+                      )}
+                    </Col>
+                    <Col md={4} sm={6} xs={12}>
+                      <SelectParentCustomer
+                        handleInputChange={handleInputChange}
+                        parentid={formik.values.parentid}
+                        parentName={formik.values.parentName}
+                      />
+                      {formik.errors.parentName && (
+                        <div className="text-danger">
+                          {formik.errors.parentName}
                         </div>
                       )}
                     </Col>

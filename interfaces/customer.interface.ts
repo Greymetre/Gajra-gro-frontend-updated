@@ -7,6 +7,8 @@ export interface CreateCustomerInterface {
      email: string;
      password : string;
      customerType : string;
+     parentid?: string;
+     parentName?: string;
              
                 //  remarkid  :any;
 
@@ -30,6 +32,8 @@ export interface CreateCustomerInterface {
     mobile : '',
     email: '',
     customerType: '',
+    parentid: '',
+    parentName: '',
     password : '',
     active :true,
     // remarkid:'6532639b5dd1e74e4bca9c88',

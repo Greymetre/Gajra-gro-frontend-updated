@@ -65,6 +65,9 @@ export const backendPostCustomerStatus = (data) =>
 // Get all Customers DropDown
 export const backendCustomersDropDownList = (data) =>
   post(url.GET_CUSTOMER_DROPDOWN_LIST, data);
+// Get Parent Customers DropDown
+export const backendParentCustomersDropDownList = (data) =>
+  post(url.GET_PARENT_CUSTOMER_DROPDOWN_LIST, data);
 
 export const remarkdropDownList = (data) =>
   post(url.GET_CUSTOMER_DROPDOWN_, data);

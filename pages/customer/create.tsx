@@ -85,6 +85,7 @@ export default function CustomerSave() {
     await backendGetCustomerInfo(id).then((res) => {
       if (!res.isError) {
         const { data } = res;
+        setParentLabel(data.parentLabel || "");
         Object.keys(data).forEach(async (key) => {
           if (["address", "city", "state", "postalCode"].includes(key)) {
             formik.setFieldValue(`address.${key}`, data[key]);
@@ -106,6 +107,7 @@ export default function CustomerSave() {
     undefined
   );
   const [remarkid, setremarkId] = useState("");
+  const [parentLabel, setParentLabel] = useState("");
 
   const [avatarFile, setAvatarFile] = useState<File | undefined>(undefined);
   const handleInputChange = async (
@@ -432,6 +434,7 @@ export default function CustomerSave() {
                         handleInputChange={handleInputChange}
                         parentid={formik.values.parentid}
                         parentName={formik.values.parentName}
+                        parentLabel={parentLabel}
                       />
                       {formik.errors.parentName && (
                         <div className="text-danger">

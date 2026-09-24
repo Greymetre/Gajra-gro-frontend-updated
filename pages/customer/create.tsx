@@ -86,6 +86,7 @@ export default function CustomerSave() {
       if (!res.isError) {
         const { data } = res;
         setParentLabel(data.parentLabel || "");
+        setSfaCustomerId(data.sfaCustomerId ? String(data.sfaCustomerId) : "");
         Object.keys(data).forEach(async (key) => {
           if (["address", "city", "state", "postalCode"].includes(key)) {
             formik.setFieldValue(`address.${key}`, data[key]);
@@ -108,6 +109,8 @@ export default function CustomerSave() {
   );
   const [remarkid, setremarkId] = useState("");
   const [parentLabel, setParentLabel] = useState("");
+  // Id of this customer in Gajra Gears SFA; read only, filled by the SFA sync
+  const [sfaCustomerId, setSfaCustomerId] = useState("");
 
   const [avatarFile, setAvatarFile] = useState<File | undefined>(undefined);
   const handleInputChange = async (
@@ -442,6 +445,22 @@ export default function CustomerSave() {
                         </div>
                       )}
                     </Col>
+                    {id && (
+                      <Col md={4} sm={6} xs={12}>
+                        <Form.Group className="form-group">
+                          <Form.Label htmlFor="sfaCustomerId">
+                            GG SFA Customer ID
+                          </Form.Label>
+                          <Form.Control
+                            type="text"
+                            id="sfaCustomerId"
+                            value={sfaCustomerId}
+                            readOnly
+                            placeholder=""
+                          />
+                        </Form.Group>
+                      </Col>
+                    )}
                     <AddressForm
                       key={"AddressForm"}
                       handleInputChange={handleInputChange}

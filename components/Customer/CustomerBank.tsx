@@ -37,6 +37,10 @@ import {
 import { Formik, FormikHelpers, useFormik, useFormikContext } from "formik";
 import * as yup from "yup";
 import { objectAppendIntoformData } from "../../utils/utility";
+import KycImageViewer, {
+  KycViewerField,
+  KycViewerImage,
+} from "./KycImageViewer";
 const schema = yup.object().shape({
   // gstinNo: yup.string().optional().matches(/^([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9]{1}[A-Z1-9]{1})?$/, 'Invalid GSTIN'),
   gstinNo: yup.string().optional(),
@@ -200,23 +204,30 @@ console.log("customeridcustomerid" , customerid)
     }
   };
 
+  // Both return true on success so the image viewer can update its status.
   const handelCustomerkycVerified = async (iData: any) => {
     if (window.confirm("Are you sure to verified this kyc?")) {
-      await backendCustomerkycVerified(iData).then((res) => {
+      return await backendCustomerkycVerified(iData).then((res) => {
         if (res.isError == false) {
           setCustomerBankInfo(res.data);
+          return true;
         }
+        return false;
       });
     }
+    return false;
   };
   const handelCustomerkycRejected = async (iData: any) => {
     if (window.confirm("Are you sure to reject this kyc?")) {
-      await backendCustomerkycRejected(iData).then((res) => {
+      return await backendCustomerkycRejected(iData).then((res) => {
         if (res.isError == false) {
           setCustomerBankInfo(res.data);
+          return true;
         }
+        return false;
       });
     }
+    return false;
   };
   const handleInputChange = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -349,7 +360,116 @@ console.log("customeridcustomerid" , customerid)
     </div>
   );
 
+  type KycDocKey = "gstin" | "pan" | "aadhar" | "other" | "bank" | "upi";
+  const [viewer, setViewer] = useState<{ doc: KycDocKey; index: number } | null>(
+    null
+  );
+  const customerName =
+    customerInfo?.contactPerson || customerInfo?.firmName || "";
+  const kycDocs: Record<
+    KycDocKey,
+    {
+      title: string;
+      images: KycViewerImage[];
+      fields: KycViewerField[];
+      verifiedTo: string;
+      verified?: boolean;
+      canVerify: boolean;
+    }
+  > = {
+    gstin: {
+      title: "GSTIN",
+      images: [{ src: gstinImage || "", label: "GSTIN" }],
+      fields: [
+        { label: "GSTIN No", value: formik.values.gstinNo },
+        { label: "Firm Name", value: customerInfo?.firmName },
+      ],
+      verifiedTo: "verified.gstinVerified",
+      verified: customerInfo.gstinVerified,
+      canVerify: !!(customerInfo.gstinImage || customerInfo.gstinNo),
+    },
+    pan: {
+      title: "PAN",
+      images: [{ src: panImage || "", label: "PAN" }],
+      fields: [
+        { label: "PAN No", value: formik.values.panNo },
+        { label: "Customer Name", value: customerName },
+        { label: "Firm Name", value: customerInfo?.firmName },
+      ],
+      verifiedTo: "verified.panVerified",
+      verified: customerInfo.panVerified,
+      canVerify: !!(customerInfo.panImage || customerInfo.panNo),
+    },
+    aadhar: {
+      title: "Aadhar",
+      images: [
+        { src: aadharImage || "", label: "Front" },
+        { src: aadharBackImage || "", label: "Back" },
+      ],
+      fields: [
+        { label: "Aadhar No", value: formik.values.aadharNo },
+        { label: "Customer Name", value: customerName },
+        {
+          label: "Address on Record",
+          value: [customerInfo?.address, customerInfo?.city, customerInfo?.state]
+            .filter(Boolean)
+            .join(", "),
+        },
+      ],
+      verifiedTo: "verified.aadharVerified",
+      verified: customerInfo.aadharVerified,
+      canVerify: !!(customerInfo.aadharFrontImage || customerInfo.aadharNo),
+    },
+    other: {
+      title: "Other Document",
+      images: [{ src: otherImage || "", label: "Other" }],
+      fields: [
+        { label: "Other Doc No", value: formik.values.otherNo },
+        { label: "Customer Name", value: customerName },
+      ],
+      verifiedTo: "verified.otherVerified",
+      verified: customerInfo.otherVerified,
+      canVerify: !!(customerInfo.otherFrontImage || customerInfo.otherNo),
+    },
+    bank: {
+      title: "Bank / Passbook",
+      images: [{ src: passbookImage || "", label: "Passbook" }],
+      fields: [
+        { label: "Account No", value: formik.values.accountNo },
+        { label: "Account Holder Name", value: formik.values.holderName },
+        { label: "Bank Name", value: formik.values.bankName },
+        { label: "IFSC", value: formik.values.ifsc },
+        { label: "Customer Name", value: customerName },
+      ],
+      verifiedTo: "verified.bankVerified",
+      verified: customerInfo.bankVerified,
+      canVerify: true,
+    },
+    upi: {
+      title: "UPI",
+      images: [{ src: upiImage || "", label: "UPI" }],
+      fields: [
+        { label: "UPI Number", value: formik.values.upiNumber },
+        { label: "Customer Name", value: customerName },
+        { label: "Mobile", value: customerInfo?.mobile },
+      ],
+      verifiedTo: "verified.upiVerified",
+      verified: customerInfo?.upiVerified,
+      canVerify: true,
+    },
+  };
+  const openViewer = (doc: KycDocKey, src: string | null) => {
+    const images = kycDocs[doc].images.filter((i) => i.src);
+    const index = Math.max(
+      0,
+      images.findIndex((i) => i.src === src)
+    );
+    setViewer({ doc, index });
+  };
+  const activeDoc = viewer ? kycDocs[viewer.doc] : null;
+
   const renderUpload = (
+    doc: KycDocKey,
     label: string,
     preview: string | null,
     onChange: (event: React.ChangeEvent<HTMLInputElement>) => void
@@ -357,9 +477,15 @@ console.log("customeridcustomerid" , customerid)
     <div className="kyc-upload">
       <div className="kyc-preview">
         {preview ? (
-          <a href={preview} target="_blank" rel="noreferrer">
+          <button
+            type="button"
+            className="kyc-preview-btn"
+            title="Click to view & verify"
+            onClick={() => openViewer(doc, preview)}
+          >
             <Image src={preview} />
-          </a>
+            <span className="kyc-preview-hint">🔍 Click to view</span>
+          </button>
         ) : (
           <span>No image</span>
         )}
@@ -438,7 +564,7 @@ console.log("customeridcustomerid" , customerid)
         </div>
         <Row className="g-3">
           <Col lg={4} md={6} xs={12}>
-            {renderUpload("GSTIN Image", gstinImage, (event) =>
+            {renderUpload("gstin", "GSTIN Image", gstinImage, (event) =>
               pickImage(event, setGstinFile, setGstinImage)
             )}
           </Col>
@@ -465,7 +591,7 @@ console.log("customeridcustomerid" , customerid)
         </div>
         <Row className="g-3">
           <Col lg={4} md={6} xs={12}>
-            {renderUpload("PAN Image", panImage, (event) =>
+            {renderUpload("pan", "PAN Image", panImage, (event) =>
               pickImage(event, setPanFile, setPanImage)
             )}
           </Col>
@@ -492,12 +618,12 @@ console.log("customeridcustomerid" , customerid)
         </div>
         <Row className="g-3">
           <Col lg={4} md={6} xs={12}>
-            {renderUpload("Aadhar Front", aadharImage, (event) =>
+            {renderUpload("aadhar", "Aadhar Front", aadharImage, (event) =>
               pickImage(event, setAadharFile, setAadharImage)
             )}
           </Col>
           <Col lg={4} md={6} xs={12}>
-            {renderUpload("Aadhar Back", aadharBackImage, (event) =>
+            {renderUpload("aadhar", "Aadhar Back", aadharBackImage, (event) =>
               pickImage(event, setAadharBackFile, setAadharBackImage)
             )}
           </Col>
@@ -524,7 +650,7 @@ console.log("customeridcustomerid" , customerid)
         </div>
         <Row className="g-3">
           <Col lg={4} md={6} xs={12}>
-            {renderUpload("Other Image", otherImage, (event) =>
+            {renderUpload("other", "Other Image", otherImage, (event) =>
               pickImage(event, setOtherFile, setOtherImage)
             )}
           </Col>
@@ -549,7 +675,7 @@ console.log("customeridcustomerid" , customerid)
         </div>
         <Row className="g-3">
           <Col lg={4} md={6} xs={12}>
-            {renderUpload("Passbook / Cheque Image", passbookImage, (event) =>
+            {renderUpload("bank", "Passbook / Cheque Image", passbookImage, (event) =>
               pickImage(event, setPassbookFile, setPassBookImage)
             )}
           </Col>
@@ -591,7 +717,7 @@ console.log("customeridcustomerid" , customerid)
         </div>
         <Row className="g-3">
           <Col lg={4} md={6} xs={12}>
-            {renderUpload("UPI Image", upiImage, (event) =>
+            {renderUpload("upi", "UPI Image", upiImage, (event) =>
               pickImage(event, setUpiFile, setUpiImage)
             )}
           </Col>
@@ -657,6 +783,29 @@ console.log("customeridcustomerid" , customerid)
           </div>
         </div>
       ) : null}
+
+      <KycImageViewer
+        show={!!viewer}
+        onHide={() => setViewer(null)}
+        title={activeDoc?.title || ""}
+        images={activeDoc ? activeDoc.images.filter((i) => i.src) : []}
+        initialIndex={viewer?.index || 0}
+        fields={activeDoc?.fields || []}
+        verified={activeDoc?.verified}
+        canVerify={!!activeDoc?.canVerify}
+        onVerify={() =>
+          handelCustomerkycVerified({
+            customerid: customerid,
+            verifiedTo: activeDoc?.verifiedTo,
+          })
+        }
+        onReject={() =>
+          handelCustomerkycRejected({
+            customerid: customerid,
+            kycdocs: viewer?.doc,
+          })
+        }
+      />
     </div>
   );
 };

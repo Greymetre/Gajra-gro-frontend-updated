@@ -77,6 +77,9 @@ export const MODULE_CITY = "/user/city";
 export const GET_ALLCITY = "/user/city/all";
 export const POST_CITY_STATUS = "/user/city/updateStatus";
 export const POST_STATE_CITYLIST = "/user/city/getStateCities";
+export const GET_ALL_DISTRICTS = "/user/district/all";
+export const POST_SYNC_LOCATIONS_FROM_SFA = "/user/district/syncFromSfa";
+export const GET_LOCATION_COUNTS = "/user/district/counts";
 //Attendance Routes
 export const MODULE_ATTENDANCE = "/user/attendances";
 export const POST_ATTENDANCE_STATUS = "/user/attendances/updateStatus";

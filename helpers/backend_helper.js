@@ -266,6 +266,15 @@ export const backendPostStateStatus = (data) =>
 export const backendGetCountryStates = (data) =>
   post(url.POST_COUNTRY_STATELIST, data);
 export const backendgetRemark = (data) => post(url.POST_REMARK_, data);
+/*========== District Module (synced from GG SFA) ===============*/
+// Get all districts: { stateid?, state?, active? }
+export const backendGetAllDistricts = (data = {}) =>
+  post(url.GET_ALL_DISTRICTS, data);
+// Country / state / district / city counts
+export const backendGetLocationCounts = () => get(url.GET_LOCATION_COUNTS);
+// Pull countries / states / districts / cities from GG SFA now
+export const backendSyncLocationsFromSfa = (data = { full: true }) =>
+  post(url.POST_SYNC_LOCATIONS_FROM_SFA, data);
 /*========== City Module ===============*/
 // Get all Cities
 export const backendGetAllCities = (data) => post(url.GET_ALLCITY, data);

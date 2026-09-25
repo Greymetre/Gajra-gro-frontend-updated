@@ -4717,3 +4717,238 @@ color:black !important;
   --bs-btn-hover-bg: #1fb338;
   --bs-btn-hover-border-color: #1fb338;
 }
+
+/* ---------- Address master ---------- */
+.am-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.am-header h3 {
+  font-size: 22px;
+  font-weight: 600;
+}
+.am-subtitle {
+  font-size: 13px;
+  color: #667085;
+}
+.am-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.am-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+.am-alert-ok { background: #e7f6ec; color: #12733a; }
+.am-alert-err { background: #fdecec; color: #b42318; }
+.am-alert-close {
+  border: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  color: inherit;
+}
+.am-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+  padding: 8px 24px 24px;
+}
+.am-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #eceef2;
+  margin-bottom: 18px;
+  overflow-x: auto;
+}
+.am-tab {
+  border: 0;
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  color: #667085;
+  font-weight: 500;
+  padding: 14px 18px;
+  white-space: nowrap;
+}
+.am-tab:hover { color: #111; }
+.am-tab.active {
+  color: #111;
+  border-bottom-color: #111;
+}
+.am-form-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.am-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.am-count {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+}
+.am-count span {
+  font-weight: 400;
+  color: #98a2b3;
+}
+.am-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.am-search.form-control {
+  width: 280px;
+  max-width: 100%;
+  border-radius: 10px;
+}
+.am-select.form-select {
+  width: 200px;
+  border-radius: 10px;
+}
+.am-select-sm.form-select {
+  width: 140px;
+}
+.am-note {
+  font-size: 12px;
+  color: #98a2b3;
+  margin: -6px 0 12px;
+}
+.am-name {
+  font-weight: 500;
+  color: #111 !important;
+}
+.am-source {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #e8effd;
+  color: #2e5bba;
+  vertical-align: middle;
+}
+.am-source-gro {
+  background: #f1f1f4;
+  color: #475467;
+}
+.am-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.am-chip {
+  font-size: 12px;
+  background: #f1f1f4;
+  color: #344054;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.am-chip-more {
+  background: #e8effd;
+  color: #2e5bba;
+  cursor: default;
+}
+.am-status .dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 0;
+}
+.am-status .am-status-on { background: #e7f6ec; color: #12733a; }
+.am-status .am-status-off { background: #f1f1f4; color: #475467; }
+.am-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.am-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #eceef2;
+  border-radius: 8px;
+  margin-left: 6px;
+  cursor: pointer;
+  background: #fff;
+}
+.am-icon-btn:hover { background: #f6f7f9; }
+.am-icon-danger:hover { background: #fdecec; border-color: #f7c1bd; }
+.am-icon-btn img { max-width: 16px; max-height: 16px; }
+.am-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #667085;
+}
+.am-pager span { margin-right: auto; }
+.am-pager .page-link { cursor: pointer; border-radius: 8px; margin-left: 6px; color: #111; }
+@media (max-width: 576px) {
+  .am-card { padding: 8px 14px 16px; }
+  .am-search.form-control,
+  .am-select.form-select { width: 100%; }
+}
+
+/* Address master count cards */
+.am-stat {
+  width: 100%;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.am-stat:hover {
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.1);
+  transform: translateY(-2px);
+}
+.am-stat-emoji {
+  font-size: 22px;
+}
+.am-stat-sub {
+  font-size: 12px;
+  color: #98a2b3;
+  margin-top: 2px;
+}
+.am-tab-count {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #f1f1f4;
+  color: #475467;
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.am-tab.active .am-tab-count {
+  background: #111;
+  color: #fff;
+}

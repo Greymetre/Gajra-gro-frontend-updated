@@ -50,51 +50,69 @@ export default function CountryList(props: any) {
         });
     }
 
+    const renderStatus = (item: any, label: string, onPick: (active: boolean) => void) => (
+        <Dropdown className="am-status">
+            <Dropdown.Toggle variant="light" className={item.active ? 'am-status-on' : 'am-status-off'}>
+                <span className="am-dot"></span>{(item.active) ? 'Active' : 'Inactive'}
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+                <Dropdown.Item onClick={() => { if (window.confirm(`Are you sure to Active ${label}?`)) { onPick(true) } }}>Active</Dropdown.Item>
+                <Dropdown.Item onClick={() => { if (window.confirm(`Are you sure to Inactive ${label}?`)) { onPick(false) } }}>Inactive</Dropdown.Item>
+            </Dropdown.Menu>
+        </Dropdown>
+    )
+    const [search, setSearch] = useState('')
+    const q = search.trim().toLowerCase()
+    const rows = Array.isArray(countryList)
+        ? countryList.filter((item: any) => !q || `${item.countryName} ${item.iso} ${item.currency}`.toLowerCase().includes(q))
+        : []
     return (
-        <div className="table-border-style">
-            <div className="table-responsive">
-                <Table>
+        <div>
+            <div className="am-toolbar">
+                <div className="am-count">{rows.length} {rows.length === 1 ? 'country' : 'countries'}</div>
+                <div className="am-filters">
+                    <Form.Control type="text" className="am-search" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete='off' placeholder='Search country...' />
+                </div>
+            </div>
+            <div className="table-responsive cd-table-wrap">
+                <Table className="cd-table mb-0" hover>
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>Name</th>
+                            <th style={{ width: 60 }}>#</th>
+                            <th>Country</th>
                             <th>ISO</th>
-                            <th>Phone code</th>
+                            <th>Phone Code</th>
                             <th>Currency</th>
                             <th>Timezone</th>
                             <th>Flag</th>
                             <th>Status</th>
-                            <th>Edit</th>
+                            <th className="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {Array.isArray(countryList) && countryList.map((item, index) => {
+                        {rows.length ? rows.map((item: any, index: number) => {
                             return (
                                 <tr key={index}>
-                                    <td>{index + 1}</td>
-                                    <td>{item.countryName}</td>
-                                    <td>{item.iso}</td>
-                                    <td>{item.phoneCode}</td>
-                                    <td>{item.currency}</td>
-                                    <td>{item.timezones}</td>
-                                    <td>{item.flag}</td>
-                                    <td className="position-relative">
-                                        <Dropdown>
-                                            <Dropdown.Toggle>
-                                                <div className={"dot " + (item.active ? "green " : "yellow ")}></div><span>{(item.active) ? 'Active' : 'Inactive'}</span>
-                                            </Dropdown.Toggle>
-                                            <Dropdown.Menu>
-                                                <Dropdown.Item onClick={() => { if (window.confirm('Are you sure to Active country?')) { activeInactiveCountry({ countryid: item._id, active: true }) } }}>Active</Dropdown.Item>
-                                                <Dropdown.Item onClick={() => { if (window.confirm('Are you sure to InActive country?')) { activeInactiveCountry({ countryid: item._id, active: false }) } }}>Inactive</Dropdown.Item>
-                                            </Dropdown.Menu>
-                                        </Dropdown>
+                                    <td className="cd-cell-ref">{index + 1}</td>
+                                    <td className="am-name">
+                                        {item.countryName}
+                                        {item.sfaId ? <span className="am-source ms-2">GG SFA</span> : null}
                                     </td>
-                                    <td><a className="btn p-0 btn-icon" onClick={() => { handleEditItem(item) }}><Image src={IMAGE_URL + EDIT_DEMO_IMAGE} /></a>
-                                        <a className="btn p-0 btn-icon" onClick={() => { handleDeleteItem(item._id) }} ><Image src={IMAGE_URL + RED_TRASH_IMAGE} /></a>
+                                    <td>{item.iso || '-'}</td>
+                                    <td>{item.phoneCode || '-'}</td>
+                                    <td>{item.currency || '-'}</td>
+                                    <td className="cd-cell-wrap">{item.timezones || '-'}</td>
+                                    <td>{item.flag || '-'}</td>
+                                    <td>{renderStatus(item, 'country', (active) => activeInactiveCountry({ countryid: item._id, active }))}</td>
+                                    <td className="text-end text-nowrap">
+                                        <a className="am-icon-btn" title="Edit" onClick={() => { handleEditItem(item) }}><Image src={IMAGE_URL + EDIT_DEMO_IMAGE} /></a>
+                                        <a className="am-icon-btn am-icon-danger" title="Delete" onClick={() => { handleDeleteItem(item._id) }} ><Image src={IMAGE_URL + RED_TRASH_IMAGE} /></a>
                                     </td>
                                 </tr>
                             )
-                        })}
+                        }) : (
+                            <tr><td colSpan={9} className="cd-empty">No countries found</td></tr>
+                        )}
                     </tbody>
                 </Table>
             </div>

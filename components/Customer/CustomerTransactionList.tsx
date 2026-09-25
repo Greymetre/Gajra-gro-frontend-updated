@@ -17,6 +17,7 @@ import {
   initialResPaginate,
 } from "../../interfaces/pagination.interface";
 import * as XLSX from "xlsx";
+import { EmptyRow, StatusBadge, formatTabDate } from "./customerTabHelpers";
 const CustomerTransactionList = ({ customerid }: { customerid: any }) => {
   const router = useRouter();
   const [transactionData, setTransactionData] = useState<
@@ -59,118 +60,106 @@ const CustomerTransactionList = ({ customerid }: { customerid: any }) => {
     XLSX.writeFile(wb, "transaction.xlsx");
   };
   return (
-    <>
-      <Row>
-        <Col md={12} className="text-end">
-          <div className="card-body">
-            <Button
-              onClick={handleOnExport}
-              className="p-2 pr-2"
-              variant="outline-light"
-            >
-              <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
-            </Button>
-          </div>
-        </Col>
-      </Row>
-      <Row>
-        <div className="row-table">
-          <Col sm={12} md={12}>
-            <div className="card1">
-              <div className="table-border-style">
-                <div className="table-responsive">
-                  <Table>
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Date</th>
-                        <th>Coupon</th>
-                        <th>Points</th>
-                        <th>Category</th>
-
-                        <th>PointType</th>
-                        {/* <th>Action</th> */}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.isArray(transactionData) &&
-                        transactionData.map((item, index) => {
-                          return (
-                            <tr key={index}>
-                              <td>{item.refno}</td>
-                              <td>{item.createdAt}</td>
-                              <td>{item.coupon}</td>
-                              <td>{item.points}</td>
-                              <td>{item.categoryName}</td>
-
-                              <td>{item.pointType}</td>
-                              <td></td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </Table>
-                  <Col xl={12} sm={12} xs={12} className="mb-3 text-end">
-                    <nav aria-label="Page navigation example">
-                      <ul className="pagination justify-content-end">
-                        <li
-                          className={`page-item ${
-                            paginationData.currentPage === 1 ? "disabled" : ""
-                          }`}
-                        >
-                          <a
-                            className="page-link"
-                            onClick={() => {
-                              setPaginationData({
-                                ...paginationData,
-                                currentPage: paginationData.currentPage - 1,
-                              });
-                              router.push(
-                                `/transaction/?page=${
-                                  paginationData.currentPage - 1
-                                }`
-                              );
-                            }}
-                          >
-                            Previous
-                          </a>
-                        </li>
-
-                        <li
-                          className={`page-item ${
-                            paginationData.currentPage ===
-                            resPaginateData.totalPages
-                              ? "disabled"
-                              : ""
-                          }`}
-                        >
-                          <a
-                            className="page-link"
-                            onClick={() => {
-                              setPaginationData({
-                                ...paginationData,
-                                currentPage: paginationData.currentPage + 1,
-                              });
-                              router.push(
-                                `/transaction/?page=${
-                                  paginationData.currentPage + 1
-                                }`
-                              );
-                            }}
-                          >
-                            Next
-                          </a>
-                        </li>
-                      </ul>
-                    </nav>
-                  </Col>
-                </div>
-              </div>
-            </div>
-          </Col>
+    <div className="cd-tab-pane">
+      <div className="cd-tab-toolbar">
+        <div>
+          <h5 className="mb-0">Transactions</h5>
+          <p className="cd-muted-note mb-0">
+            {Array.isArray(transactionData) ? transactionData.length : 0}{" "}
+            records
+          </p>
         </div>
-      </Row>
-    </>
+        <Button
+          onClick={handleOnExport}
+          className="cd-btn cd-btn-outline"
+          variant="outline-light"
+        >
+          <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
+        </Button>
+      </div>
+      <div className="table-responsive cd-table-wrap">
+        <Table className="cd-table mb-0" hover>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date</th>
+              <th>Coupon</th>
+              <th className="text-end">Points</th>
+              <th>Category</th>
+              <th>Point Type</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.isArray(transactionData) && transactionData.length ? (
+              transactionData.map((item, index) => {
+                return (
+                  <tr key={index}>
+                    <td className="cd-cell-ref">{item.refno}</td>
+                    <td className="text-nowrap">
+                      {formatTabDate(item.createdAt)}
+                    </td>
+                    <td>{item.coupon || "-"}</td>
+                    <td className="text-end cd-cell-points">{item.points}</td>
+                    <td>{item.categoryName || "-"}</td>
+                    <td>
+                      <StatusBadge value={item.pointType} />
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <EmptyRow colSpan={6} text="No transactions found" />
+            )}
+          </tbody>
+        </Table>
+      </div>
+      <nav aria-label="Page navigation" className="cd-pager">
+        <ul className="pagination justify-content-end mb-0">
+          <li
+            className={`page-item ${
+              paginationData.currentPage === 1 ? "disabled" : ""
+            }`}
+          >
+            <a
+              className="page-link"
+              onClick={() => {
+                setPaginationData({
+                  ...paginationData,
+                  currentPage: paginationData.currentPage - 1,
+                });
+                router.push(
+                  `/transaction/?page=${paginationData.currentPage - 1}`
+                );
+              }}
+            >
+              Previous
+            </a>
+          </li>
+          <li
+            className={`page-item ${
+              paginationData.currentPage === resPaginateData.totalPages
+                ? "disabled"
+                : ""
+            }`}
+          >
+            <a
+              className="page-link"
+              onClick={() => {
+                setPaginationData({
+                  ...paginationData,
+                  currentPage: paginationData.currentPage + 1,
+                });
+                router.push(
+                  `/transaction/?page=${paginationData.currentPage + 1}`
+                );
+              }}
+            >
+              Next
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
   );
 };
 

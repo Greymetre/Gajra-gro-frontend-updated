@@ -286,546 +286,340 @@ console.log("customeridcustomerid" , customerid)
     validationSchema: schema,
     onSubmit: handleFormSubmit,
   });
+  // Plain render helpers (called as functions, not components) so the
+  // uncontrolled switches / file inputs are not remounted on re-render.
+  const pickImage = (
+    event: React.ChangeEvent<HTMLInputElement>,
+    setFile: (file: File) => void,
+    setPreview: (src: string) => void
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const renderStatus = (verified?: boolean) => (
+    <span
+      className={`cd-badge ${verified ? "cd-badge-success" : "cd-badge-warn"}`}
+    >
+      {verified ? "Verified" : "Not Verified"}
+    </span>
+  );
+
+  const renderVerifyControls = (
+    verifiedTo: string,
+    kycdocs: string,
+    defaultChecked?: boolean
+  ) => (
+    <div className="kyc-controls">
+      <Form.Check
+        type="switch"
+        label="Verified"
+        onChange={(e) => {
+          const { value, checked } = e.target;
+          if (checked) {
+            handelCustomerkycVerified({
+              customerid: customerid,
+              verifiedTo: verifiedTo,
+            });
+          }
+        }}
+        defaultChecked={defaultChecked}
+      />
+      <Form.Check
+        className="text-danger"
+        type="switch"
+        label="Reject"
+        onChange={(e) => {
+          const { value, checked } = e.target;
+          if (checked) {
+            handelCustomerkycRejected({
+              customerid: customerid,
+              kycdocs: kycdocs,
+            });
+          }
+        }}
+      />
+    </div>
+  );
+
+  const renderUpload = (
+    label: string,
+    preview: string | null,
+    onChange: (event: React.ChangeEvent<HTMLInputElement>) => void
+  ) => (
+    <div className="kyc-upload">
+      <div className="kyc-preview">
+        {preview ? (
+          <a href={preview} target="_blank" rel="noreferrer">
+            <Image src={preview} />
+          </a>
+        ) : (
+          <span>No image</span>
+        )}
+      </div>
+      <Form.Label className="kyc-upload-label">{label}</Form.Label>
+      <Form.Control
+        type="file"
+        accept="image/*"
+        size="sm"
+        onChange={onChange}
+      />
+    </div>
+  );
+
+  const renderTextField = (
+    name: keyof typeof formik.values,
+    label: string,
+    placeholder: string
+  ) => (
+    <Form.Group className="form-group mb-3">
+      <Form.Label htmlFor={String(name)}>{label}</Form.Label>
+      <Form.Control
+        type="text"
+        name={String(name)}
+        onChange={handleInputChange}
+        value={formik.values[name] as any}
+        onBlur={formik.handleBlur}
+        required={true}
+        autoComplete="off"
+        placeholder={placeholder}
+      />
+      {formik.errors[name] && (
+        <div className="text-danger small">{formik.errors[name] as any}</div>
+      )}
+    </Form.Group>
+  );
+
   return (
-    <>
-      <Row className="border-top border-top-dashed pt-4 pb-4">
-        <Col xl={7} md={7}></Col>
-        <Col xl={5} md={5}>
-          <Row className="align-items-end card-body">
-            <Col xl={12} md={12} className="text-end">
-              <Button
-                className="btn btn-dark"
-                disabled={!formik.isValid}
-                onClick={() => {
-                  if (formik.isValid) {
-                    formik.handleSubmit();
-                  } else {
-                    console.log("is invalid", !formik.isValid);
-                  }
-                }}
-              >
-                <Image src={IMAGE_URL + WHITE_CHECKED_IMAGE} /> Upload{" "}
-              </Button>
-            </Col>
-          </Row>
-        </Col>
-        <Row className="align-items-center pt-4 pb-4">
-          <h4 className="mb-0 f-18">GSTIN Image</h4>
-          <Col xl={6} sm={6} xs={6}>
-            {gstinImage && (
-              <Image src={gstinImage} className="width240 rounded img-fluid" />
+    <div className="kyc-wrap">
+      <div className="cd-tab-toolbar">
+        <div>
+          <h5 className="mb-0">KYC Documents</h5>
+          <p className="cd-muted-note mb-0">
+            Upload or update documents, then click Upload to save.
+          </p>
+        </div>
+        <Button
+          className="btn btn-dark cd-btn"
+          disabled={!formik.isValid}
+          onClick={() => {
+            if (formik.isValid) {
+              formik.handleSubmit();
+            } else {
+              console.log("is invalid", !formik.isValid);
+            }
+          }}
+        >
+          <Image src={IMAGE_URL + WHITE_CHECKED_IMAGE} /> Upload{" "}
+        </Button>
+      </div>
+
+      {/* GSTIN */}
+      <div className="kyc-section">
+        <div className="kyc-section-head">
+          <div className="kyc-section-title">
+            <h6>GSTIN</h6>
+            {(customerInfo.gstinImage || customerInfo.gstinNo) &&
+              renderStatus(customerInfo.gstinVerified)}
+          </div>
+          {(customerInfo.gstinImage || customerInfo.gstinNo) &&
+            renderVerifyControls(
+              "verified.gstinVerified",
+              "gstin",
+              customerInfo.gstinVerified
             )}
-            {/* {customerInfo.gstinImage && <Image className='width240 rounded img-fluid' src={IMAGE_URL + customerInfo.gstinImage} />} */}
-            <div className="dropzone dz-clickable">
-              <Row className="dz-default dz-message">
-                <Col>
-                  <button className="dz-button" type="button">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(
-                        event: React.ChangeEvent<HTMLInputElement>
-                      ) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setGstinFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setGstinImage(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </button>
-                </Col>
-              </Row>
-            </div>
-          </Col>
-          <Col xl={4} sm={4} xs={4}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="gstinNo">Gstin No</Form.Label>
-              <Form.Control
-                type="text"
-                name="gstinNo"
-                onChange={handleInputChange}
-                value={formik.values.gstinNo}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="GSTIN No"
-              />
-              {formik.errors.gstinNo && (
-                <div className="text-danger">{formik.errors.gstinNo}</div>
-              )}
-            </Form.Group>
-          </Col>
-          {(customerInfo.gstinImage || customerInfo.gstinNo) && (
-            <Col xl={2} sm={2} xs={4}>
-              <p className="mb-0 f-12">Click To</p>
-              <div className="mb-2">
-                <Form.Check
-                  type="switch"
-                  label="Verified"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycVerified({
-                        customerid: customerid,
-                        verifiedTo: "verified.gstinVerified",
-                      });
-                    }
-                  }}
-                  defaultChecked={customerInfo.gstinVerified}
-                />
-              </div>
-              <div className="mb-2">
-                <Form.Check
-                  className="text-danger"
-                  type="switch"
-                  label="Reject"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycRejected({
-                        customerid: customerid,
-                        kycdocs: "gstin",
-                      });
-                    }
-                  }}
-                />
-              </div>
-            </Col>
-          )}
-        </Row>
-        <hr />
-        <Row className="align-items-center pt-4 pb-4">
-          <h4 className="mb-0 f-18">PAN Image</h4>
-          <Col xl={6} sm={6} xs={6}>
-            {panImage && (
-              <Image src={panImage} className="width240 rounded img-fluid" />
+        </div>
+        <Row className="g-3">
+          <Col lg={4} md={6} xs={12}>
+            {renderUpload("GSTIN Image", gstinImage, (event) =>
+              pickImage(event, setGstinFile, setGstinImage)
             )}
-            {/* {customerInfo.panImage && <Image className='width240 rounded img-fluid' src={IMAGE_URL + customerInfo.panImage} />} */}
-            <div className="dropzone dz-clickable">
-              <Row className="dz-default dz-message">
-                <Col>
-                  <button className="dz-button" type="button">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(
-                        event: React.ChangeEvent<HTMLInputElement>
-                      ) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setPanFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setPanImage(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </button>
-                </Col>
-              </Row>
-            </div>
           </Col>
-          <Col xl={4} sm={4} xs={4}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="panNo">Pan No</Form.Label>
-              <Form.Control
-                type="text"
-                name="panNo"
-                onChange={handleInputChange}
-                value={formik.values.panNo}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="Pan No"
-              />
-              {formik.errors.panNo && (
-                <div className="text-danger">{formik.errors.panNo}</div>
-              )}
-            </Form.Group>
+          <Col lg={4} md={6} xs={12}>
+            {renderTextField("gstinNo", "GSTIN No", "GSTIN No")}
           </Col>
-          {(customerInfo.panImage || customerInfo.panNo) && (
-            <Col xl={2} sm={2} xs={4}>
-              <p className="mb-0 f-12">Click To</p>
-              <div className="mb-2">
-                <Form.Check
-                  type="switch"
-                  label="Verified"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycVerified({
-                        customerid: customerid,
-                        verifiedTo: "verified.panVerified",
-                      });
-                    }
-                  }}
-                  defaultChecked={customerInfo.panVerified}
-                />
-              </div>
-              <div className="mb-2">
-                <Form.Check
-                  className="text-danger"
-                  type="switch"
-                  label="Reject"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycRejected({
-                        customerid: customerid,
-                        kycdocs: "pan",
-                      });
-                    }
-                  }}
-                />
-              </div>
-            </Col>
-          )}
         </Row>
-        <hr />
-        <Row className="align-items-center pt-4 pb-4">
-          <h4 className="mb-0 f-18">Aadhar Image</h4>
-          <Col xl={6} sm={6} xs={6}>
-            <div className="dropzone dz-clickable">
-              <Row className="dz-default dz-message">
-                <Col xl={6} sm={6} xs={6}>
-                  {aadharImage && (
-                    <Image
-                      src={aadharImage}
-                      className="width240 rounded img-fluid"
-                    />
-                  )}
-                  {/* {customerInfo.aadharFrontImage && <Image className='width240 rounded img-fluid' src={IMAGE_URL + customerInfo.aadharFrontImage} />} */}
-                  <button className="dz-button" type="button">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(
-                        event: React.ChangeEvent<HTMLInputElement>
-                      ) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setAadharFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setAadharImage(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </button>
-                </Col>
-                <Col xl={6} sm={6} xs={6}>
-                  {aadharBackImage && (
-                    <Image
-                      src={aadharBackImage}
-                      className="width240 rounded img-fluid"
-                    />
-                  )}
-                  {/* {customerInfo.aadharBackImage && <Image className='width240 rounded img-fluid' src={IMAGE_URL + customerInfo.aadharBackImage} />} */}
-                  <button className="dz-button" type="button">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(
-                        event: React.ChangeEvent<HTMLInputElement>
-                      ) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setAadharBackFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setAadharBackImage(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </button>
-                </Col>
-              </Row>
-            </div>
+      </div>
+
+      {/* PAN */}
+      <div className="kyc-section">
+        <div className="kyc-section-head">
+          <div className="kyc-section-title">
+            <h6>PAN</h6>
+            {(customerInfo.panImage || customerInfo.panNo) &&
+              renderStatus(customerInfo.panVerified)}
+          </div>
+          {(customerInfo.panImage || customerInfo.panNo) &&
+            renderVerifyControls(
+              "verified.panVerified",
+              "pan",
+              customerInfo.panVerified
+            )}
+        </div>
+        <Row className="g-3">
+          <Col lg={4} md={6} xs={12}>
+            {renderUpload("PAN Image", panImage, (event) =>
+              pickImage(event, setPanFile, setPanImage)
+            )}
           </Col>
-          <Col xl={4} sm={4} xs={4}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="FirmName">Aadhar NO</Form.Label>
-              <Form.Control
-                type="text"
-                name="aadharNo"
-                onChange={handleInputChange}
-                value={formik.values.aadharNo}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="Aadhar No"
-              />
-              {formik.errors.aadharNo && (
-                <div className="text-danger">{formik.errors.aadharNo}</div>
-              )}
-            </Form.Group>
+          <Col lg={4} md={6} xs={12}>
+            {renderTextField("panNo", "PAN No", "PAN No")}
           </Col>
-          {(customerInfo.aadharFrontImage || customerInfo.aadharNo) && (
-            <Col xl={2} sm={2} xs={4}>
-              <p className="mb-0 f-12">Click To</p>
-              <div className="mb-2">
-                <Form.Check
-                  type="switch"
-                  label="Verified"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycVerified({
-                        customerid: customerid,
-                        verifiedTo: "verified.aadharVerified",
-                      });
-                    }
-                  }}
-                  defaultChecked={customerInfo.aadharVerified}
-                />
-              </div>
-              <div className="mb-2">
-                <Form.Check
-                  className="text-danger"
-                  type="switch"
-                  label="Reject"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycRejected({
-                        customerid: customerid,
-                        kycdocs: "aadhar",
-                      });
-                    }
-                  }}
-                />
-              </div>
-            </Col>
-          )}
         </Row>
-        <hr />
-        <Row className="align-items-center pt-4 pb-4">
-          <h4 className="mb-0 f-18">Other Image</h4>
-          <Col xl={6} sm={6} xs={6}>
-            <div className="dropzone dz-clickable">
-              <Row className="dz-default dz-message">
-                {otherImage && (
-                  <Image
-                    src={otherImage}
-                    className="width240 rounded img-fluid"
-                  />
+      </div>
+
+      {/* Aadhar */}
+      <div className="kyc-section">
+        <div className="kyc-section-head">
+          <div className="kyc-section-title">
+            <h6>Aadhar</h6>
+            {(customerInfo.aadharFrontImage || customerInfo.aadharNo) &&
+              renderStatus(customerInfo.aadharVerified)}
+          </div>
+          {(customerInfo.aadharFrontImage || customerInfo.aadharNo) &&
+            renderVerifyControls(
+              "verified.aadharVerified",
+              "aadhar",
+              customerInfo.aadharVerified
+            )}
+        </div>
+        <Row className="g-3">
+          <Col lg={4} md={6} xs={12}>
+            {renderUpload("Aadhar Front", aadharImage, (event) =>
+              pickImage(event, setAadharFile, setAadharImage)
+            )}
+          </Col>
+          <Col lg={4} md={6} xs={12}>
+            {renderUpload("Aadhar Back", aadharBackImage, (event) =>
+              pickImage(event, setAadharBackFile, setAadharBackImage)
+            )}
+          </Col>
+          <Col lg={4} md={12} xs={12}>
+            {renderTextField("aadharNo", "Aadhar No", "Aadhar No")}
+          </Col>
+        </Row>
+      </div>
+
+      {/* Other */}
+      <div className="kyc-section">
+        <div className="kyc-section-head">
+          <div className="kyc-section-title">
+            <h6>Other Document</h6>
+            {(customerInfo.otherFrontImage || customerInfo.otherNo) &&
+              renderStatus(customerInfo.otherVerified)}
+          </div>
+          {(customerInfo.otherFrontImage || customerInfo.otherNo) &&
+            renderVerifyControls(
+              "verified.otherVerified",
+              "other",
+              customerInfo.otherVerified
+            )}
+        </div>
+        <Row className="g-3">
+          <Col lg={4} md={6} xs={12}>
+            {renderUpload("Other Image", otherImage, (event) =>
+              pickImage(event, setOtherFile, setOtherImage)
+            )}
+          </Col>
+          <Col lg={4} md={6} xs={12}>
+            {renderTextField("otherNo", "Other Doc No", "Other Doc No")}
+          </Col>
+        </Row>
+      </div>
+
+      {/* Bank */}
+      <div className="kyc-section">
+        <div className="kyc-section-head">
+          <div className="kyc-section-title">
+            <h6>Bank / Passbook</h6>
+            {renderStatus(customerInfo.bankVerified)}
+          </div>
+          {renderVerifyControls(
+            "verified.bankVerified",
+            "bank",
+            customerInfo.bankVerified
+          )}
+        </div>
+        <Row className="g-3">
+          <Col lg={4} md={6} xs={12}>
+            {renderUpload("Passbook / Cheque Image", passbookImage, (event) =>
+              pickImage(event, setPassbookFile, setPassBookImage)
+            )}
+          </Col>
+          <Col lg={8} md={6} xs={12}>
+            <Row>
+              <Col md={6} xs={12}>
+                {renderTextField("accountNo", "Account No", "Account No")}
+              </Col>
+              <Col md={6} xs={12}>
+                {renderTextField(
+                  "holderName",
+                  "Account Holder Name",
+                  "Account Holder Name"
                 )}
-                {/* {customerInfo.otherFrontImage && <Image className='width240 rounded img-fluid' src={IMAGE_URL + customerInfo.otherFrontImage} />} */}
-                <button className="dz-button" type="button">
-                  <Form.Control
-                    type="file"
-                    accept="image/*"
-                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        setOtherFile(file);
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          setOtherImage(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
-                      }
-                    }}
-                  />
-                </button>
-              </Row>
-            </div>
+              </Col>
+              <Col md={6} xs={12}>
+                {renderTextField("bankName", "Bank Name", "Bank Name")}
+              </Col>
+              <Col md={6} xs={12}>
+                {renderTextField("ifsc", "IFSC", "IFSC")}
+              </Col>
+            </Row>
           </Col>
-          <Col xl={4} sm={4} xs={4}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="FirmName">Other Doc No</Form.Label>
-              <Form.Control
-                type="text"
-                name="otherNo"
-                onChange={handleInputChange}
-                value={formik.values.otherNo}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="Other Doc No"
-              />
-              {formik.errors.otherNo && (
-                <div className="text-danger">{formik.errors.otherNo}</div>
-              )}
-            </Form.Group>
-          </Col>
-          {(customerInfo.otherFrontImage || customerInfo.otherNo) && (
-            <Col xl={2} sm={2} xs={4}>
-              <p className="mb-0 f-12">Click To</p>
-              <div className="mb-2">
-                <Form.Check
-                  type="switch"
-                  label="Verified"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycVerified({
-                        customerid: customerid,
-                        verifiedTo: "verified.otherVerified",
-                      });
-                    }
-                  }}
-                  defaultChecked={customerInfo.otherVerified}
-                />
-              </div>
-              <div className="mb-2">
-                <Form.Check
-                  className="text-danger"
-                  type="switch"
-                  label="Reject"
-                  onChange={(e) => {
-                    const { value, checked } = e.target;
-                    if (checked) {
-                      handelCustomerkycRejected({
-                        customerid: customerid,
-                        kycdocs: "other",
-                      });
-                    }
-                  }}
-                />
-              </div>
-            </Col>
+        </Row>
+      </div>
+
+      {/* UPI */}
+      <div className="kyc-section">
+        <div className="kyc-section-head">
+          <div className="kyc-section-title">
+            <h6>UPI</h6>
+            {renderStatus(customerInfo?.upiVerified)}
+          </div>
+          {renderVerifyControls(
+            "verified.upiVerified",
+            "upi",
+            customerInfo?.upiVerified
           )}
-        </Row>
-        <hr />
-        <Row className="align-items-center pt-4 pb-4">
-          <h4 className="mb-0 f-18">Passbook / Check Image</h4>
-          <Col xl={3} sm={3} xs={6}>
-            {passbookImage && (
-              <Image
-                src={passbookImage}
-                className="width240 rounded img-fluid"
-              />
+        </div>
+        <Row className="g-3">
+          <Col lg={4} md={6} xs={12}>
+            {renderUpload("UPI Image", upiImage, (event) =>
+              pickImage(event, setUpiFile, setUpiImage)
             )}
-            {/* {customerInfo.panImage && <Image className='width240 rounded img-fluid' src={IMAGE_URL + customerInfo.panImage} />} */}
-            <div className="dropzone dz-clickable">
-              <Row className="dz-default dz-message">
-                <Col>
-                  <button className="dz-button" type="button">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(
-                        event: React.ChangeEvent<HTMLInputElement>
-                      ) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setPassbookFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setPassBookImage(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </button>
-                </Col>
-              </Row>
+          </Col>
+          <Col lg={4} md={6} xs={12}>
+            {renderTextField("upiNumber", "UPI Number", "Enter UPI Number")}
+          </Col>
+        </Row>
+      </div>
+
+      {customerBankInfo.accountNo ? (
+        <div className="kyc-section mb-0">
+          <div className="kyc-section-head">
+            <div className="kyc-section-title">
+              <h6>Saved Bank Account</h6>
+              {renderStatus(customerBankInfo.verified)}
             </div>
-          </Col>
-          <Col xl={3} sm={3} xs={6}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="panNo">Account No</Form.Label>
-              <Form.Control
-                type="text"
-                name="accountNo"
-                onChange={handleInputChange}
-                value={formik.values.accountNo}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="Account No"
-              />
-              {formik.errors.accountNo && (
-                <div className="text-danger">{formik.errors.accountNo}</div>
-              )}
-            </Form.Group>
-          </Col>
-          <Col xl={3} sm={3} xs={6}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="panNo">Account Holder Name</Form.Label>
-              <Form.Control
-                type="text"
-                name="holderName"
-                onChange={handleInputChange}
-                value={formik.values.holderName}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="Account No"
-              />
-              {formik.errors.holderName && (
-                <div className="text-danger">{formik.errors.holderName}</div>
-              )}
-            </Form.Group>
-          </Col>
-          <Col xl={3} sm={3} xs={6}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="panNo">Bank Name</Form.Label>
-              <Form.Control
-                type="text"
-                name="bankName"
-                onChange={handleInputChange}
-                value={formik.values.bankName}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="Account No"
-              />
-              {formik.errors.bankName && (
-                <div className="text-danger">{formik.errors.bankName}</div>
-              )}
-            </Form.Group>
-          </Col>
-          <Col xl={4} sm={4} xs={4}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="panNo">Ifsc</Form.Label>
-              <Form.Control
-                type="text"
-                name="ifsc"
-                onChange={handleInputChange}
-                value={formik.values.ifsc}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder="Ifsc"
-              />
-              {formik.errors.ifsc && (
-                <div className="text-danger">{formik.errors.ifsc}</div>
-              )}
-            </Form.Group>
-          </Col>
-          <Col xl={2} sm={2} xs={4}>
-            <p className="mb-0 f-12">Click To</p>
-            <div className="mb-2">
+            <div className="kyc-controls">
               <Form.Check
                 type="switch"
                 label="Verified"
                 onChange={(e) => {
                   const { value, checked } = e.target;
                   if (checked) {
-                    handelCustomerkycVerified({
-                      customerid: customerid,
-                      verifiedTo: "verified.bankVerified",
-                    });
+                    handelCustomerBankVerified();
                   }
                 }}
-                defaultChecked={customerInfo.bankVerified}
+                defaultChecked={customerBankInfo.verified}
               />
-            </div>
-            <div className="mb-2">
               <Form.Check
                 className="text-danger"
                 type="switch"
@@ -833,252 +627,37 @@ console.log("customeridcustomerid" , customerid)
                 onChange={(e) => {
                   const { value, checked } = e.target;
                   if (checked) {
-                    handelCustomerkycRejected({
-                      customerid: customerid,
-                      kycdocs: "bank",
-                    });
+                    handelCustomerBankClear();
                   }
                 }}
               />
             </div>
-          </Col>
-        </Row>
-        <hr />
-
-
-
-
-
-        
-        
-        <Row className="align-items-center pt-4 pb-4">
-          <h4 className="mb-0 f-18">UPI/ UPI Number Image</h4>
-          <Col xl={3} sm={3} xs={6}>
-            {upiImage && (
-              <Image
-                src={upiImage}
-                className="width240 rounded img-fluid"
-              />
-            )}
-            {/* {customerInfo.panImage && <Image className='width240 rounded img-fluid' src={IMAGE_URL + customerInfo.panImage} />} */}
-            <div className="dropzone dz-clickable">
-              <Row className="dz-default dz-message">
-                <Col>
-                  
-
-
-                  <button className="dz-button" type="button">
-                    <Form.Control
-                      type="file"
-                      accept="image/*"
-                      onChange={(
-                        event: React.ChangeEvent<HTMLInputElement>
-                      ) => {
-                        const file = event.target.files?.[0];
-                        if (file) {
-                          setUpiFile(file);
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setUpiImage(reader.result as string);
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </button>
-
-                
-                </Col>
-              </Row>
+          </div>
+          <div className="cd-grid">
+            <div className="cd-field">
+              <label>Account No</label>
+              <span>{customerBankInfo.accountNo}</span>
             </div>
-          </Col>
-          <Col xl={3} sm={3} xs={6}>
-            <Form.Group className="form-group">
-              <Form.Label htmlFor="panNo">UPI Number</Form.Label>
-              <Form.Control
-                type="text"
-                name="upiNumber"
-                onChange={handleInputChange}
-                value={formik.values.upiNumber}
-                onBlur={formik.handleBlur}
-                required={true}
-                autoComplete="off"
-                placeholder=" Enter UPI Number"
-              />
-              {formik.errors.upiNumber && (
-                <div className="text-danger">{formik.errors.upiNumber}</div>
-              )}
-            </Form.Group>
-          </Col>
-      
-          <Col xl={2} sm={2} xs={4}>
-            <p className="mb-0 f-12">Click To</p>
-            <div className="mb-2">
-              <Form.Check
-                type="switch"
-                label="Verified"
-                onChange={(e) => {
-                  const { value, checked } = e.target;
-                  if (checked) {
-                    handelCustomerkycVerified({
-                      customerid: customerid,
-                      verifiedTo: "verified.upiVerified",
-                    });
-                  }
-                }}
-                defaultChecked={customerInfo?.upiVerified}
-              />
+            <div className="cd-field">
+              <label>Holder Name</label>
+              <span>{customerBankInfo.holderName || "-"}</span>
             </div>
-            <div className="mb-2">
-              <Form.Check
-                className="text-danger"
-                type="switch"
-                label="Reject"
-                onChange={(e) => {
-                  const { value, checked } = e.target;
-                  if (checked) {
-                    handelCustomerkycRejected({
-                      customerid: customerid,
-                      kycdocs: "upi",
-                    });
-                  }
-                }}
-              />
+            <div className="cd-field">
+              <label>Bank Name</label>
+              <span>{customerBankInfo.bankName || "-"}</span>
             </div>
-          </Col>
-        </Row>
-
-
-
-        
-        
-
-        {customerBankInfo.accountNo ? (
-          <Col xl={12} sm={12} xs={12}>
-            <Row className="align-items-start card-body">
-              <h3> Bank Account </h3>
-              <Col xl={4} sm={4} xs={6}>
-                <div className="mb-2">
-                  <p className="mb-0 f-12">Account No</p>
-                  <span className="text-muted ">
-                    {customerBankInfo.accountNo}
-                  </span>
-                </div>
-              </Col>
-              <Col xl={4} sm={4} xs={6}>
-                <div className="mb-2">
-                  <p className="mb-0 f-12">Holder Name</p>
-                  <span className="text-muted ">
-                    {customerBankInfo.holderName}
-                  </span>
-                </div>
-              </Col>
-              <Col xl={4} sm={4} xs={6}>
-                <div className="mb-2">
-                  <p className="mb-0 f-12">Bank Name</p>
-                  <span className="text-muted ">
-                    {customerBankInfo.bankName}
-                  </span>
-                </div>
-              </Col>
-              <Col xl={4} sm={4} xs={6}>
-                <div className="mb-2">
-                  <p className="mb-0 f-12">Account Type</p>
-                  <span className="text-muted ">
-                    {customerBankInfo.accountType}
-                  </span>
-                </div>
-              </Col>
-              <Col xl={4} sm={4} xs={6}>
-                <div className="mb-2">
-                  <p className="mb-0 f-12">Ifsc</p>
-                  <span className="text-muted ">{customerBankInfo.ifsc}</span>
-                </div>
-              </Col>
-              <Col xl={4} sm={4} xs={6}>
-                <p className="mb-0 f-12">Click To</p>
-                <div className="mb-2">
-                  <Form.Check
-                    type="switch"
-                    label="Verified"
-                    onChange={(e) => {
-                      const { value, checked } = e.target;
-                      if (checked) {
-                        handelCustomerBankVerified();
-                      }
-                    }}
-                    defaultChecked={customerBankInfo.verified}
-                  />
-                </div>
-                <div className="mb-2">
-                  <Form.Check
-                    className="text-danger"
-                    type="switch"
-                    label="Reject"
-                    onChange={(e) => {
-                      const { value, checked } = e.target;
-                      if (checked) {
-                        handelCustomerBankClear();
-                      }
-                    }}
-                  />
-                </div>
-              </Col>
-            </Row>
-          </Col>
-        ) : null}
-      </Row>
-{/*  */}
-      {/* <Row className="border-top border-top-dashed pt-4 pb-4">
-        {customerBankInfo.upiNumber ? (
-          <Col xl={12} sm={12} xs={12}>
-            <Row className="align-items-start card-body">
-              <h3> Upi </h3>
-              <Col xl={8} sm={8} xs={8}>
-                <div className="mb-2">
-                  <p className="mb-0 f-12">Upi Number</p>
-                  <span className=" ">{customerBankInfo.upiNumber}</span>
-                </div>
-              </Col>
-              <Col xl={4} sm={4} xs={4}>
-                <p className="mb-0 f-12">Click To</p>
-                <div className="mb-2">
-                  <Form.Check
-                    type="switch"
-                    id="custom-switch"
-                    name="custom-switch"
-                    label="Verified"
-                    onChange={(e) => {
-                      const { value, checked } = e.target;
-                      if (checked) {
-                        handelCustomerUpiVerified(
-                    );
-                      }
-                    }}
-                    defaultChecked={customerBankInfo.upiVerified}
-                  />
-                </div>
-                <div className="mb-2">
-                  <Form.Check
-                    className="text-danger"
-                    type="switch"
-                    name="custom-switch"
-                    id="custom-switch"
-                    label="Reject"
-                    onChange={(e) => {
-                      const { value, checked } = e.target;
-                      if (checked) {
-                        handelCustomerUpiClear();
-                      }
-                    }}
-                  />
-                </div>
-              </Col>
-            </Row>
-          </Col>
-        ) : null}
-      </Row> */}
-    </>
+            <div className="cd-field">
+              <label>Account Type</label>
+              <span>{customerBankInfo.accountType || "-"}</span>
+            </div>
+            <div className="cd-field">
+              <label>IFSC</label>
+              <span>{customerBankInfo.ifsc || "-"}</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 };
 

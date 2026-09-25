@@ -190,481 +190,372 @@ const CustomerDetail = () => {
     onSubmit: handleFormSubmit,
   });
 
+  const formatDateTime = (value?: string) =>
+    value
+      ? new Date(value).toLocaleString("en-IN", {
+          timeZone: "Asia/Kolkata",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "-";
+
+  const fullName = (u?: { firstName?: string; lastName?: string }) =>
+    [u?.firstName, u?.lastName].filter(Boolean).join(" ") || "-";
+
+  const stats = [
+    {
+      label: "Total Points Earned",
+      value: customerInfo.totalTransaction,
+      icon: SHOP_ALT_IMAGE,
+      tone: "cd-stat-green",
+    },
+    {
+      label: "Total Redemption",
+      value: customerInfo.totalRedemption,
+      icon: SHOPPING_BAG_IMAGE,
+      tone: "cd-stat-blue",
+    },
+    {
+      label: "Rejected Points",
+      value: customerInfo.totalRejectedPoint,
+      icon: USER_ALT_IMAGE,
+      tone: "cd-stat-red",
+    },
+    {
+      label: "Balance Points",
+      value: customerInfo.balancePoint,
+      icon: USER_ALT_IMAGE,
+      tone: "cd-stat-amber",
+    },
+  ];
+
   return (
     <Layout>
       {/* <BreadcrumbComponent firstItem={{ href: '/dashboard', label: 'dashboard' }} secondItem={{ href: '/customer', label: 'CustomerList' }} itemlabel='Customer Profile' /> */}
-      <Row>
-        <Col xl={3} sm={3} xs={12}>
-          <Card className="prod-p-card bg-white">
-            <Card.Body className="p-20">
-              <Row className="align-items-center">
-                <Col xl={3} sm={3} xs={3}>
-                  <Image src={IMAGE_URL + SHOP_ALT_IMAGE} />
-                </Col>
-                <Col xl={9} sm={9} xs={9}>
-                  <h6 className="m-b-5 text-dark">Total Point Earn</h6>
-                  <h3 className="m-b-0 text-dark">
-                    {" "}
-                    {customerInfo.totalTransaction}
-                  </h3>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xl={3} sm={3} xs={12}>
-          <Card className="prod-p-card bg-white">
-            <Card.Body className="p-20">
-              <Row className="align-items-center">
-                <Col xl={3} sm={3} xs={3}>
-                  <Image src={IMAGE_URL + SHOPPING_BAG_IMAGE} />
-                </Col>
-                <Col xl={9} sm={9} xs={9}>
-                  <h6 className="m-b-5 text-dark">Total Redemption</h6>
-                  <h3 className="m-b-0 text-dark">
-                    {" "}
-                    {customerInfo.totalRedemption}
-                  </h3>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
+      <div className="cd-page">
+        <Link href="/customer" className="cd-back">
+          &larr; Back to Customer List
+        </Link>
 
-        <Col xl={3} sm={3} xs={12}>
-          <Card className="prod-p-card bg-white">
-            <Card.Body className="p-20">
-              <Row className="align-items-center">
-                <Col xl={3} sm={3} xs={3}>
-                  <Image src={IMAGE_URL + USER_ALT_IMAGE} />
-                </Col>
-                <Col xl={9} sm={9} xs={9}>
-                  <h6 className="m-b-5 text-dark">Total RejectedPoint</h6>
-                  <h3 className="m-b-0 text-dark">
-                    {customerInfo.totalRejectedPoint}
-                  </h3>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-        <Col xl={3} sm={3} xs={12}>
-          <Card className="prod-p-card bg-white">
-            <Card.Body className="p-20">
-              <Row className="align-items-center">
-                <Col xl={3} sm={3} xs={3}>
-                  <Image src={IMAGE_URL + USER_ALT_IMAGE} />
-                </Col>
-                <Col xl={9} sm={9} xs={9}>
-                  <h6 className="m-b-5 text-dark">Total balancePoint</h6>
-                  <h3 className="m-b-0 text-dark">
-                    {customerInfo.balancePoint}
-                  </h3>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-        {/* <Col xl={3} sm={3} xs={12}>
-          <Card className="prod-p-card bg-white">
-            <Card.Body className="p-20">
-              <Row className="align-items-center">
-                <Col xl={3} sm={3} xs={3}>
-                  <Image src={IMAGE_URL + SHOP_EARN_POINT_IMAGE} />
-                </Col>
-                <Col xl={9} sm={9} xs={9}>
-                  <h6 className="m-b-5 text-dark">Total Points</h6>
-                <h3 className="m-b-0 text-dark">$1,783</h3>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col> */}
-        <Col xl={12} sm={12} xs={12}>
-          <Row>
-            <Col xl={6} sm={6} xs={6}>
-              <h3 className="card-body mb-0">Customer Profile</h3>
-            </Col>
-            <Col xl={6} sm={6} xs={6} className="text-end">
-              <Card.Body>
-                <div className="form-group d-flex align-items-center justify-content-end mb-0">
-                  <Form.Group>
-                    <Form.Label className="d-block m-r-10"></Form.Label>
-                    <div className="form-check form-switch custom-control-inline">
-                      <Form.Check
-                        inline
-                        name="active"
-                        type="checkbox"
-                        //   if (
-                        //     window.confirm(
-                        //       `Are you sure to ${
-                        //         subcategoryInfo?.active ? "Inactive" : "Active"
-                        //       } product ?`
-                        //     )
-                        //   ) {
-                        //     activeInactiveSubCategory();
-                        //   }
-                        // }}
+        {/* Profile header */}
+        <div className="cd-hero">
+          <div className="cd-hero-identity">
+            <Image
+              className="cd-hero-avatar"
+              src={
+                customerInfo.avatar
+                  ? IMAGE_URL + customerInfo.avatar
+                  : IMAGE_URL + CUSTOMER_DEMO_IMAGE
+              }
+            />
+            <div className="cd-hero-text">
+              <h3>{customerInfo.firmName}</h3>
+              <div className="cd-hero-tags">
+                {customerInfo.customerType ? (
+                  <span className="cd-badge cd-badge-type">
+                    {customerInfo.customerType}
+                  </span>
+                ) : null}
+                <span
+                  className={`cd-badge ${
+                    customerInfo.active ? "cd-badge-success" : "cd-badge-muted"
+                  }`}
+                >
+                  {customerInfo.active ? "Active" : "Inactive"}
+                </span>
+                {customerInfo.refno ? (
+                  <span className="cd-hero-meta">
+                    Ref No: {customerInfo.refno}
+                  </span>
+                ) : null}
+              </div>
+              <div className="cd-hero-contact">
+                {customerInfo.mobile ? (
+                  <span>
+                    <i className="feather icon-phone"></i> {customerInfo.mobile}
+                  </span>
+                ) : null}
+                {customerInfo.email ? (
+                  <span>
+                    <i className="feather icon-mail"></i> {customerInfo.email}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
 
-                        onClick={() => {
-                          if (
-                            window.confirm(
-                              `Are you sure to ${
-                                customerInfo?.active ? "Inactive" : "Active"
-                              } customer?`
-                            )
-                          ) {
-                            activeInactiveCustomer();
-                          }
-                        }}
-                        defaultChecked={customerInfo?.active}
-                      />
-                    </div>
-                  </Form.Group>
-                </div>
-              </Card.Body>
-            </Col>
-          </Row>
-          <Card className="flat-card m-t-10">
-            <Row className="m-10">
-              <Tabs
-                defaultActiveKey="profile"
-                id="pills-tab"
-                className="nav-pills"
-                fill
-                activeKey={key}
-                onSelect={(k: any) => setKey(k)}
+          <div className="cd-hero-actions">
+            <div className="cd-status-toggle">
+              <span>Status</span>
+              <div className="form-check form-switch custom-control-inline mb-0">
+                <Form.Check
+                  inline
+                  name="active"
+                  type="checkbox"
+                  onClick={() => {
+                    if (
+                      window.confirm(
+                        `Are you sure to ${
+                          customerInfo?.active ? "Inactive" : "Active"
+                        } customer?`
+                      )
+                    ) {
+                      activeInactiveCustomer();
+                    }
+                  }}
+                  defaultChecked={customerInfo?.active}
+                />
+              </div>
+            </div>
+            {customerInfo.customerType === "Mechanic" && (
+              <Button
+                className="cd-btn"
+                variant="success"
+                disabled={welcomePointLoading}
+                onClick={handleAddWelcomePoint}
               >
-                <Tab eventKey="detailinfo" title="Detail">
-                  <Row>
-                    <Col
-                      xl={6}
-                      sm={6}
-                      xs={6}
-                      className="border-end border-end-dashed"
-                    >
-                      <Row className="align-items-center card-body">
-                        <Col xl={6} sm={6} xs={6}>
-                          <Image
-                            className="width240 rounded img-fluid"
-                            src={
-                              customerInfo.avatar
-                                ? IMAGE_URL + customerInfo.avatar
-                                : IMAGE_URL + CUSTOMER_DEMO_IMAGE
-                            }
+                {welcomePointLoading ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      className="me-2"
+                    />
+                    Crediting...
+                  </>
+                ) : (
+                  "Add Welcome Point"
+                )}
+              </Button>
+            )}
+            {moduleAccess.canUpdate && (
+              <Link
+                href={{
+                  pathname: "/customer/create",
+                  query: { id: customerInfo._id },
+                }}
+              >
+                <Button className="cd-btn" variant="dark">
+                  <Image src={IMAGE_URL + EDIT_WHITE_DEMO_IMAGE} /> Edit
+                </Button>
+              </Link>
+            )}
+            {moduleAccess.canDelete && (
+              <Button
+                className="cd-btn cd-btn-danger"
+                variant="outline-danger"
+                onClick={() => {
+                  handleDeleteItem(customerInfo._id);
+                }}
+              >
+                Delete
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Stats */}
+        <Row className="g-3 mb-4">
+          {stats.map((stat) => (
+            <Col xl={3} sm={6} xs={12} key={stat.label}>
+              <div className={`cd-stat ${stat.tone}`}>
+                <div className="cd-stat-icon">
+                  <Image src={IMAGE_URL + stat.icon} />
+                </div>
+                <div>
+                  <div className="cd-stat-label">{stat.label}</div>
+                  <div className="cd-stat-value">{stat.value ?? 0}</div>
+                </div>
+              </div>
+            </Col>
+          ))}
+        </Row>
+
+        {/* Tabs */}
+        <div className="cd-tabs-card">
+          <Tabs
+            defaultActiveKey="profile"
+            id="pills-tab"
+            className="cd-tabs"
+            activeKey={key}
+            onSelect={(k: any) => setKey(k)}
+          >
+            <Tab eventKey="detailinfo" title="Detail">
+              <Row className="g-4">
+                <Col xl={8} md={12}>
+                  <div className="cd-section">
+                    <h6 className="cd-section-title">Basic Information</h6>
+                    <div className="cd-grid">
+                      <div className="cd-field">
+                        <label>Firm Name</label>
+                        <span>{customerInfo.firmName || "-"}</span>
+                      </div>
+                      <div className="cd-field">
+                        <label>Contact Person</label>
+                        <span>{customerInfo.contactPerson || "-"}</span>
+                      </div>
+                      <div className="cd-field">
+                        <label>Mobile</label>
+                        <span>{customerInfo.mobile || "-"}</span>
+                      </div>
+                      <div className="cd-field">
+                        <label>Customer Type</label>
+                        <span>{customerInfo.customerType || "-"}</span>
+                      </div>
+                      <div className="cd-field">
+                        <label>Email</label>
+                        <span>{customerInfo.email || "-"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="cd-section">
+                    <h6 className="cd-section-title">Location</h6>
+                    <div className="cd-grid">
+                      <div className="cd-field">
+                        <label>State</label>
+                        <span>{customerInfo?.state || "-"}</span>
+                      </div>
+                      <div className="cd-field">
+                        <label>City</label>
+                        <span>{customerInfo?.city || "-"}</span>
+                      </div>
+                      <div className="cd-field">
+                        <label>Postal Code</label>
+                        <span>{customerInfo?.postalCode || "-"}</span>
+                      </div>
+                      <div className="cd-field cd-field-full">
+                        <label>Address</label>
+                        <span>{customerInfo?.address || "-"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="cd-section">
+                    <h6 className="cd-section-title">Assignment</h6>
+                    <div className="cd-grid">
+                      <div className="cd-field">
+                        <label>Assigned User</label>
+                        <span className="cd-editable">
+                          {fullName(customerInfo?.userInfo)}
+                          <PencilSquare
+                            className="cd-edit-icon"
+                            onClick={() => setAssignUserView(true)}
                           />
-                        </Col>
-                        <Col xl={6} sm={6} xs={6}>
-                          <h4>{customerInfo.firmName}</h4>
-                          <span className="text-muted">
-                            <i className="feather icon-phone m-r-10"></i>
-                            {customerInfo.email}
-                          </span>
-                          <br />
-                          <span className="text-muted">
-                            <i className="feather icon-mail m-r-10"></i>
-                            {customerInfo.email}{" "}
-                          </span>
-                        </Col>
-                      </Row>
-                    </Col>
-                    <Col xl={6} sm={6} xs={6}>
-                      <Row className="align-items-center card-body">
-                        <Col xl={6} sm={6} xs={6}>
-                          <Col xl={6} sm={6} xs={6}>
-                            <Image
-                              className="width240 rounded img-fluid"
-                              src={
-                                customerInfo.shopimage
-                                  ? IMAGE_URL + customerInfo.shopimage
-                                  : IMAGE_URL + CUSTOMER_DEMO_IMAGE
-                              }
-                            />
-                            <p>ShopImage</p>
-                          </Col>
-                          {/* <div className="mb-2">
-                            <p className="mb-0 f-12">Tier</p>
-                            <span className="text-muted f-12">
-                              <Image src="/gold.svg" />
-                              {customerInfo.grade}
-                            </span>
-                          </div>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Grade</p>
-                            <span className="text-muted ">
-                              {customerInfo.grade}
-                            </span>
-                          </div> */}
-                        </Col>
-                        <Col xl={6} sm={6} xs={6} className="text-end">
-                          {customerInfo.customerType === "Mechanic" && (
-                            <Button
-                              className="btn btn-success m-r-5"
-                              disabled={welcomePointLoading}
-                              onClick={handleAddWelcomePoint}
-                            >
-                              {welcomePointLoading ? (
-                                <>
-                                  <Spinner
-                                    as="span"
-                                    animation="border"
-                                    size="sm"
-                                    className="me-2"
-                                  />
-                                  Crediting...
-                                </>
-                              ) : (
-                                "Add Welcome Point"
-                              )}
-                            </Button>
-                          )}
-                          {moduleAccess.canUpdate && (
-                            <Link
-                              className="mb-3"
-                              href={{
-                                pathname: "/customer/create",
-                                query: { id: customerInfo._id },
-                              }}
-                            >
-                              <Button className="btn btn-dark  m-r-5">
-                                <Image
-                                  src={IMAGE_URL + EDIT_WHITE_DEMO_IMAGE}
-                                />{" "}
-                                Edit
-                              </Button>
-                            </Link>
-                          )}
-                          {moduleAccess.canDelete && (
-                            <div className="btn  btn-dark">
-                              <a
-                                className="btn p-0 btn-icon"
-                                onClick={() => {
-                                  handleDeleteItem(customerInfo._id);
-                                }}
-                              >
-                                <Image src={IMAGE_URL + WHITE_TRASH_IMAGE} />
-                                Delete
-                              </a>
-                            </div>
-                          )}
-                        </Col>
-                      </Row>
-                    </Col>
-                  </Row>
-                  <Row className="border-top border-top-dashed">
-                    <Col xl={12} sm={12} xs={12}>
-                      <Row className="align-items-start card-body">
-                        <Col xl={3} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Firm Name</p>
-                            <span className="text-muted ">
-                              {customerInfo.firmName}
-                            </span>
-                          </div>
-                        </Col>
-                        <Col xl={3} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Contact Person</p>
-                            <span className="text-muted ">
-                              {customerInfo.contactPerson}
-                            </span>
-                          </div>
-                        </Col>
-                        <Col xl={3} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Mobile</p>
-                            <span className="text-muted ">
-                              {customerInfo.mobile}
-                            </span>
-                          </div>
-                        </Col>
-                        <Col xl={3} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Customer Type</p>
-                            <span className="text-muted ">
-                              {customerInfo.customerType}
-                            </span>
-                          </div>
-                        </Col>
-                      </Row>
-                    </Col>
-                  </Row>
-                  <Row className="border-top border-top-dashed">
-                    <Col xl={12} sm={12} xs={12}>
-                      <Row className="align-items-start card-body">
-                        <Col xl={4} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">State</p>
-                            <span className="text-muted ">
-                              {customerInfo?.state}
-                            </span>
-                          </div>
-                        </Col>
-                        <Col xl={4} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">City</p>
-                            <span className="text-muted ">
-                              {customerInfo?.city}
-                            </span>
-                          </div>
-                        </Col>
-                        <Col xl={4} sm={12} xs={12}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Address</p>
-                            <span className="text-muted ">
-                              {customerInfo?.address}
-                            </span>
-                          </div>
-                        </Col>
-                      </Row>
-                    </Col>
-                  </Row>
-                  <Row className="border-top border-top-dashed">
-                    <Col xl={12} sm={12} xs={12}>
-                      <Row className="align-items-start card-body">
-                        <Col xl={4} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Assigned User</p>
-                            <span className="text-muted ">
-                              {customerInfo?.userInfo?.firstName}{" "}
-                              {customerInfo?.userInfo?.lastName}
-                            </span>
-                            <span>
-                              <PencilSquare
-                                onClick={() => setAssignUserView(true)}
-                              />
-                            </span>
-                          </div>
-                          {assignUserView ? (
+                        </span>
+                        {assignUserView ? (
+                          <div className="mt-2">
                             <SelectUserList
                               handleInputChange={handleInputChange}
                               fieldname="userid"
                               fieldvalue={formik.values.userid}
                             />
-                          ) : null}
-                        </Col>
-                        <Col xl={4} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Assigned Manager</p>
-                            <span className="text-muted ">
-                              {customerInfo?.reportings?.firstName}{" "}
-                              {customerInfo?.reportings?.lastName}
-                            </span>
-                            <span>
-                              <PencilSquare
-                                onClick={() => setAssignReportingView(true)}
-                              />
-                            </span>
                           </div>
-                          {assignReportingView ? (
+                        ) : null}
+                      </div>
+                      <div className="cd-field">
+                        <label>Assigned Manager</label>
+                        <span className="cd-editable">
+                          {fullName(customerInfo?.reportings)}
+                          <PencilSquare
+                            className="cd-edit-icon"
+                            onClick={() => setAssignReportingView(true)}
+                          />
+                        </span>
+                        {assignReportingView ? (
+                          <div className="mt-2">
                             <SelectUserList
                               handleInputChange={handleInputChange}
                               fieldname="reporting"
                               fieldvalue={formik.values.reporting}
                             />
-                          ) : null}
-                        </Col>
-                        <Col xl={4} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Created By</p>
-                            <span className="text-muted ">
-                              {customerInfo?.createdBy}
-                            </span>
                           </div>
-                          {assignReportingView || assignUserView ? (
-                            <Link
-                              className="mb-3"
-                              href={{
-                                pathname: "/customer",
-                              }}
-                            >
-                              <Button
-                                size="sm"
-                                className="btn-dark"
-                                disabled={!formik.isValid}
-                                onClick={() => {
-                                  if (formik.isValid) {
-                                    formik.handleSubmit();
-                                  }
-                                }}
-                              >
-                                Save{" "}
-                              </Button>
-                            </Link>
-                          ) : null}
-                        </Col>
-                      </Row>
-                    </Col>
-                  </Row>
-                  <Row className="border-top border-top-dashed">
-                    <Col xl={12} sm={12} xs={12}>
-                      <Row className="align-items-start card-body">
-                        <Col xl={3} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Created Date</p>
-                            <span className="text-muted ">
-                              {customerInfo.createdAt
-                                ? new Date(
-                                    customerInfo.createdAt
-                                  ).toLocaleDateString("en-IN", {
-                                    timeZone: "Asia/Kolkata",
-                                    year: "numeric",
-                                    month: "2-digit",
-                                    day: "numeric",
-                                    minute: "2-digit",
-                                    second: "2-digit",
-                                  })
-                                : ""}
-                            </span>
-                          </div>
-                        </Col>
-                        <Col xl={3} sm={4} xs={6}>
-                          <div className="mb-2">
-                            <p className="mb-0 f-12">Last Login</p>
-                            <span className="text-muted ">
-                              {customerInfo.loginAt
-                                ? new Date(
-                                    customerInfo.loginAt
-                                  ).toLocaleDateString("en-IN", {
-                                    timeZone: "Asia/Kolkata",
-                                    year: "numeric",
-                                    month: "2-digit",
-                                    day: "numeric",
-                                    minute: "2-digit",
-                                    second: "2-digit",
-                                  })
-                                : ""}
-                            </span>
-                          </div>
-                        </Col>
-                        <Col xl={3} sm={4} xs={6}></Col>
-                        <Col xl={3} sm={4} xs={6}></Col>
-                      </Row>
-                    </Col>
-                  </Row>
-                </Tab>
-                <Tab eventKey="aproval" title="KYC">
-                  {id ? (
-                    <CustomerBank customerid={id} customerInfo={customerInfo} />
-                  ) : null}
-                </Tab>
-                <Tab eventKey="transactions" title="Transactions">
-                  {id ? <CustomerTransactionList customerid={id} /> : null}
-                </Tab>
-                <Tab eventKey="redemptions" title="Redemptions">
-                  {id ? <CustomerRedemptionList customerid={id} /> : null}
-                </Tab>
-                <Tab eventKey="callSummary" title="Activities">
-                  {id ? <CustomerCallSummary customerid={id} /> : null}
-                </Tab>
-              </Tabs>
-            </Row>
-          </Card>
-          <Card className="flat-card m-t-10">
-            <Row></Row>
-          </Card>
-        </Col>
-      </Row>
+                        ) : null}
+                      </div>
+                      <div className="cd-field">
+                        <label>Created By</label>
+                        <span>{customerInfo?.createdBy || "-"}</span>
+                      </div>
+                    </div>
+                    {assignReportingView || assignUserView ? (
+                      <div className="text-end mt-3">
+                        <Link
+                          href={{
+                            pathname: "/customer",
+                          }}
+                        >
+                          <Button
+                            size="sm"
+                            className="btn-dark cd-btn"
+                            disabled={!formik.isValid}
+                            onClick={() => {
+                              if (formik.isValid) {
+                                formik.handleSubmit();
+                              }
+                            }}
+                          >
+                            Save Assignment
+                          </Button>
+                        </Link>
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="cd-section mb-0">
+                    <h6 className="cd-section-title">Activity</h6>
+                    <div className="cd-grid">
+                      <div className="cd-field">
+                        <label>Created Date</label>
+                        <span>{formatDateTime(customerInfo.createdAt)}</span>
+                      </div>
+                      <div className="cd-field">
+                        <label>Last Login</label>
+                        <span>{formatDateTime(customerInfo.loginAt)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Col>
+
+                <Col xl={4} md={12}>
+                  <div className="cd-section mb-0">
+                    <h6 className="cd-section-title">Shop Image</h6>
+                    <div className="cd-shop-image">
+                      <Image
+                        src={
+                          customerInfo.shopimage
+                            ? IMAGE_URL + customerInfo.shopimage
+                            : IMAGE_URL + CUSTOMER_DEMO_IMAGE
+                        }
+                      />
+                    </div>
+                    {!customerInfo.shopimage ? (
+                      <p className="cd-muted-note">No shop image uploaded</p>
+                    ) : null}
+                  </div>
+                </Col>
+              </Row>
+            </Tab>
+            <Tab eventKey="aproval" title="KYC">
+              {id ? (
+                <CustomerBank customerid={id} customerInfo={customerInfo} />
+              ) : null}
+            </Tab>
+            <Tab eventKey="transactions" title="Transactions">
+              {id ? <CustomerTransactionList customerid={id} /> : null}
+            </Tab>
+            <Tab eventKey="redemptions" title="Redemptions">
+              {id ? <CustomerRedemptionList customerid={id} /> : null}
+            </Tab>
+            <Tab eventKey="callSummary" title="Activities">
+              {id ? <CustomerCallSummary customerid={id} /> : null}
+            </Tab>
+          </Tabs>
+        </div>
+      </div>
     </Layout>
   );
 };

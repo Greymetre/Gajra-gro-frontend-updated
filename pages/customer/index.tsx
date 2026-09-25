@@ -347,99 +347,98 @@ const Customer = React.forwardRef((props, ref) => {
       <Row>
         <Col xl={12} sm={12} xs={12}>
           <Row className="align-items-center mb-4">
-            <Col md={3}>
-              <h3 className="card-body">
-                Customer List({resPaginateData.totalDocs})
-              </h3>
-            </Col>
-            <Col md={2}>
-              <Form.Group className="d-flex align-items-center mb-0">
-                <Form.Label>Show</Form.Label>
-                <Form.Select
-                  value={paginationData.recordPerPage}
-                  onChange={(e: any) => {
-                    setPaginationData({
-                      ...paginationData,
-                      currentPage: 1,
-                      recordPerPage: e.target.value,
-                    });
-                  }}
-                >
-                  <option value={100}>{100}</option>
-                  <option value={200}>{200}</option>
-                  <option value={500}>{500}</option>
-                  <option value={1000}>{1000}</option>
-                  <option value={2000}>{2000}</option>
-                  <option value={5000}>5000</option>
-                  <option value={10000}>10000</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={3} className="text-end">
-              <Form.Group className="form-group">
-                <Form.Label></Form.Label>
-                <Form.Control
-                  type="text"
-                  onChange={(e) => {
-                    setPaginationData({
-                      ...paginationData,
-                      currentPage: 1,
-                      search: e.target.value,
-                    });
-                  }}
-                  value={paginationData.search}
-                  autoComplete="off"
-                  placeholder="Search"
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4} className="text-end">
-              <div className="card-body">
-                {moduleAccess?.canExport ? (
-                  <Button
-                    onClick={handleOnExport}
-                    className="p-2 pr-2"
-                    variant="outline-light"
-                  >
-                    <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
-                  </Button>
-                ) : null}
-                {moduleAccess?.canCreate ? (
-                  <Link href={{ pathname: "/customer/create" }}>
-                    <Button className="m-r-5" variant="dark">
-                      <Image src={IMAGE_URL + WHITE_PLUS_CIRCLE_IMAGE} /> Add
-                      Customer
-                    </Button>
-                  </Link>
-                ) : null}
+            <Col xl={12} sm={12} xs={12}>
+              <div className="cl-toolbar">
+                <div className="cl-toolbar-top">
+                  <div className="cl-title">
+                    <h3 className="mb-0">Customer List</h3>
+                    <span className="cl-count">
+                      {resPaginateData.totalDocs ?? 0}
+                    </span>
+                  </div>
+                  <div className="cl-actions">
+                    {moduleAccess?.canExport ? (
+                      <Button
+                        onClick={handleOnExport}
+                        className="cl-btn-outline"
+                        variant="outline-light"
+                      >
+                        <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
+                      </Button>
+                    ) : null}
+                    {moduleAccess?.canCreate ? (
+                      <Link href={{ pathname: "/customer/create" }}>
+                        <Button className="cl-btn-dark" variant="dark">
+                          <Image src={IMAGE_URL + WHITE_PLUS_CIRCLE_IMAGE} /> Add
+                          Customer
+                        </Button>
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="cl-toolbar-row">
+                  <Form.Control
+                    className="cl-search"
+                    type="text"
+                    onChange={(e) => {
+                      setPaginationData({
+                        ...paginationData,
+                        currentPage: 1,
+                        search: e.target.value,
+                      });
+                    }}
+                    value={paginationData.search}
+                    autoComplete="off"
+                    placeholder="Search by name, phone, ref no..."
+                  />
+                  <Form.Group className="cl-show mb-0">
+                    <Form.Label className="mb-0">Show</Form.Label>
+                    <Form.Select
+                      value={paginationData.recordPerPage}
+                      onChange={(e: any) => {
+                        setPaginationData({
+                          ...paginationData,
+                          currentPage: 1,
+                          recordPerPage: e.target.value,
+                        });
+                      }}
+                    >
+                      <option value={100}>{100}</option>
+                      <option value={200}>{200}</option>
+                      <option value={500}>{500}</option>
+                      <option value={1000}>{1000}</option>
+                      <option value={2000}>{2000}</option>
+                      <option value={5000}>5000</option>
+                      <option value={10000}>10000</option>
+                    </Form.Select>
+                  </Form.Group>
+                  <div className="cl-import">
+                    {moduleAccess?.canImport ? (
+                      <Button
+                        onClick={handleExportTemplate}
+                        className="cl-btn-outline"
+                        variant="outline-light"
+                      >
+                        <Download /> Template
+                      </Button>
+                    ) : null}
+                    <InputGroup className="cl-upload">
+                      <Form.Control
+                        type="file"
+                        accept=".xlsx"
+                        onChange={handleFileChange}
+                      />
+                      <Button
+                        className="btn btn-dark"
+                        onClick={handleFileUploadSubmit}
+                      >
+                        {" "}
+                        Upload
+                      </Button>
+                    </InputGroup>
+                  </div>
+                </div>
               </div>
-            </Col>
-            <Col md={2}>
-              {moduleAccess?.canImport ? (
-                <Button
-                  onClick={handleExportTemplate}
-                  className="btn btn-dark p-2 pr-2"
-                  variant="outline-light"
-                >
-                  <Download /> Template
-                </Button>
-              ) : null}
-            </Col>
-            <Col md={4}>
-              <InputGroup className="mb-3">
-                <Form.Control
-                  type="file"
-                  accept=".xlsx"
-                  onChange={handleFileChange}
-                />
-                <Button
-                  className="btn btn-dark"
-                  onClick={handleFileUploadSubmit}
-                >
-                  {" "}
-                  Upload
-                </Button>
-              </InputGroup>
             </Col>
             <Col xl={12} sm={12} xs={12} className="text-end">
               <Accordion defaultActiveKey="0" className="mb-3">
@@ -1511,104 +1510,100 @@ const Customer = React.forwardRef((props, ref) => {
         {Array.isArray(customerData) &&
           customerData.map((item, index) => {
             return (
-              <Col xl={4} md={6} sm={6} xs={12} key={index}>
-                <Card className="border-30 prod-p-card bg-white">
+              <Col xl={4} md={6} sm={6} xs={12} key={index} className="mb-4">
+                <Card className="cl-card h-100">
                   <Card.Body>
-                    <Row className="align-items-center">
-                      <Col md={10}>
+                    <div className="cl-card-head">
+                      <Link
+                        className="cl-card-identity"
+                        href={{
+                          pathname: "/customer/" + item._id,
+                        }}
+                      >
+                        <Image
+                          src={
+                            item.avatar
+                              ? IMAGE_URL + item.avatar
+                              : IMAGE_URL + PROFILE_DEMO_IMAGE
+                          }
+                          alt="User image"
+                          className="cl-avatar"
+                        />
+                        <div className="cl-card-name">
+                          <h6 className="mb-1">{item?.firmName}</h6>
+                          <div className="cl-card-tags">
+                            {item.customerType ? (
+                              <span className="cl-badge">
+                                {item.customerType}
+                              </span>
+                            ) : null}
+                            <span className="cl-ref">
+                              Ref No: {item.refno}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                      {moduleAccess?.canUpdate ? (
                         <Link
-                          className="mb-3"
                           href={{
-                            pathname: "/customer/" + item._id,
+                            pathname: "/customer/create",
+                            query: { id: item._id },
                           }}
                         >
-                          <div className="media user-about-block align-items-center mt-0 mb-3">
-                            <div className="position-relative d-inline-block">
-                              <Image
-                                src={
-                                  item.avatar
-                                    ? IMAGE_URL + item.avatar
-                                    : IMAGE_URL + PROFILE_DEMO_IMAGE
-                                }
-                                alt="User image"
-                                className="img-radius img-fluid wid-56"
-                              />
-                            </div>
-                            <div className="media-body ms-3">
-                              <h6 className="mb-1 f-16">{item?.firmName}</h6>
-                            </div>
-                          </div>
-                        </Link>
-                      </Col>
-                      <Col md={2} className="text-end">
-                        {moduleAccess?.canUpdate ? (
-                          <Link
-                            className="mb-3"
-                            href={{
-                              pathname: "/customer/create",
-                              query: { id: item._id },
-                            }}
+                          <Button
+                            className="cl-edit"
+                            variant="outline-light"
+                            title="Edit customer"
                           >
-                            <Button className="p-0" variant="outline-light">
-                              <Image src={IMAGE_URL + EDIT_DEMO_IMAGE} />
-                            </Button>
-                          </Link>
-                        ) : null}
-                      </Col>
-                      <Col md={8}>
-                        <h6 className="mb-2 mr-0 f-12 f-w-300">
-                          Login At :{" "}
-                          <span className="text-muted">
-                            {item.loginAt
-                              ? new Date(item.loginAt).toLocaleString()
-                              : ""}
-                          </span>
-                        </h6>
-                      </Col>
-                      <Col md={4}>
-                        <h6 className="mb-2 mr-0 f-12 f-w-300">
-                          Ref No :{" "}
-                          <span className="text-muted">{item.refno}</span>
-                        </h6>
-                      </Col>
-                      <Col md={7} className="mb-3">
-                        <h6 className="mb-1 mr-0 f-12 f-w-300">
-                          Contact Person
-                        </h6>
-                        <span className="text-muted">{item.contactPerson}</span>
-                      </Col>
-                      <Col md={5} className="mb-3">
-                        <h6 className="mb-1 f-12 f-w-400">Phone</h6>
-                        <span className="text-muted">{item.mobile}</span>
-                      </Col>
-                      <Col md={7} className="mb-3">
-                        <h6 className="mb-1 f-12 f-w-400">Email</h6>
-                        <span className="text-muted">{item.email}</span>
-                      </Col>
-                      <Col md={5} className="mb-3">
-                        <h6 className="mb-1 f-12 f-w-400">Customer Type</h6>
-                        <span className="text-muted">{item.customerType}</span>
-                      </Col>
-                      <Col md={6} className="mb-3">
-                        <h6 className="mb-1 f-12 f-w-400">Created By</h6>
-                        <span className="text-muted">{item.createdBy}</span>
-                      </Col>
-                      <Col md={6} className="mb-3">
-                        <h6 className="mb-1 f-12 f-w-400">Assigned User</h6>
-                        <span className="text-muted">{item.assignUser}</span>
-                      </Col>{" "}
-                      <Col md={6} className="mb-3">
-                        <h6 className="mb-1 f-12 f-w-400">State</h6>
-                        <span className="text-muted">{item?.state}</span>
-                      </Col>
-                      <Col md={12} className="mb-3">
-                        <h6 className="mb-1 f-12 f-w-400">Address</h6>
-                        <span className="text-muted">
-                          {item?.address}, {item?.city}, {item?.state},{" "}
-                          {item?.postalCode}
+                            <Image src={IMAGE_URL + EDIT_DEMO_IMAGE} />
+                          </Button>
+                        </Link>
+                      ) : null}
+                    </div>
+
+                    <div className="cl-login">
+                      Login At:{" "}
+                      <span>
+                        {item.loginAt
+                          ? new Date(item.loginAt).toLocaleString()
+                          : "Never"}
+                      </span>
+                    </div>
+
+                    <div className="cl-fields">
+                      <div className="cl-field">
+                        <label>Contact Person</label>
+                        <span>{item.contactPerson || "-"}</span>
+                      </div>
+                      <div className="cl-field">
+                        <label>Phone</label>
+                        <span>{item.mobile || "-"}</span>
+                      </div>
+                      <div className="cl-field">
+                        <label>Email</label>
+                        <span>{item.email || "-"}</span>
+                      </div>
+                      <div className="cl-field">
+                        <label>State</label>
+                        <span>{item?.state || "-"}</span>
+                      </div>
+                      <div className="cl-field">
+                        <label>Created By</label>
+                        <span>{item.createdBy || "-"}</span>
+                      </div>
+                      <div className="cl-field">
+                        <label>Assigned User</label>
+                        <span>{item.assignUser || "-"}</span>
+                      </div>
+                      <div className="cl-field cl-field-full">
+                        <label>Address</label>
+                        <span>
+                          {[item?.address, item?.city, item?.state, item?.postalCode]
+                            .filter(Boolean)
+                            .join(", ") || "-"}
                         </span>
-                      </Col>
-                    </Row>
+                      </div>
+                    </div>
                   </Card.Body>
                 </Card>
               </Col>

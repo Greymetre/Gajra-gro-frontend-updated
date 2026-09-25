@@ -4672,3 +4672,28 @@ color:black !important;
     max-height: 50vh;
   }
 }
+
+/* Latest active/inactive remark under the customer's contact line */
+.cd-status-remark {
+  margin-top: 8px;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  max-width: 640px;
+  word-break: break-word;
+}
+.cd-status-remark-label {
+  font-weight: 600;
+}
+.cd-status-remark-meta {
+  color: #98a2b3;
+  font-size: 12px;
+}
+.cd-status-remark-active {
+  background: #e7f6ec;
+  color: #12733a;
+}
+.cd-status-remark-inactive {
+  background: #fdecec;
+  color: #b42318;
+}

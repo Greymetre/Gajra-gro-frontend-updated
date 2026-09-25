@@ -92,6 +92,12 @@ export interface CreateCustomerInterface {
     beatName? : string;
     loginAt?: string;
     createdAt?: string;
+    statusRemark?: {
+      active?: boolean;
+      remark?: string;
+      byName?: string;
+      createdAt?: string;
+    };
 }
 export const initialCustomerProfileData = {
   _id: '',

@@ -11,6 +11,7 @@ import {
   Tabs,
   Tab,
   Spinner,
+  Modal,
 } from "react-bootstrap";
 import {
   PencilSquare,
@@ -117,17 +118,45 @@ const CustomerDetail = () => {
       .catch((err) => {});
   };
 
+  // Changing status requires a remark; the switch opens this dialog first.
+  const [statusModal, setStatusModal] = useState(false);
+  const [statusRemark, setStatusRemark] = useState("");
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [statusError, setStatusError] = useState("");
+
+  const openStatusModal = () => {
+    setStatusRemark("");
+    setStatusError("");
+    setStatusModal(true);
+  };
+
   const activeInactiveCustomer = () => {
+    const remark = statusRemark.trim();
+    if (!remark) {
+      setStatusError("Remark is required");
+      return;
+    }
+    setStatusSaving(true);
     backendPostCustomerStatus({
       customerid: id,
       active: customerInfo.active ? false : true,
+      remark,
     })
       .then((result) => {
         if (!result.isError) {
+          setStatusModal(false);
           fetchCustomerDetail();
+        } else {
+          setStatusError("Unable to update status. Please try again.");
         }
       })
-      .catch((err) => {});
+      .catch((err) => {
+        setStatusError(
+          err?.response?.data?.message?.toString?.() ||
+            "Unable to update status. Please try again."
+        );
+      })
+      .finally(() => setStatusSaving(false));
   };
 
   const handleAddWelcomePoint = async () => {
@@ -284,6 +313,28 @@ const CustomerDetail = () => {
                   </span>
                 ) : null}
               </div>
+              {customerInfo.statusRemark?.remark ? (
+                <div
+                  className={`cd-status-remark ${
+                    customerInfo.active
+                      ? "cd-status-remark-active"
+                      : "cd-status-remark-inactive"
+                  }`}
+                >
+                  <span className="cd-status-remark-label">
+                    {customerInfo.active ? "Active" : "Inactive"} Remark:
+                  </span>{" "}
+                  {customerInfo.statusRemark.remark}
+                  <span className="cd-status-remark-meta">
+                    {customerInfo.statusRemark.byName
+                      ? ` — ${customerInfo.statusRemark.byName}`
+                      : ""}
+                    {customerInfo.statusRemark.createdAt
+                      ? `, ${formatDateTime(customerInfo.statusRemark.createdAt)}`
+                      : ""}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -295,18 +346,8 @@ const CustomerDetail = () => {
                   inline
                   name="active"
                   type="checkbox"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        `Are you sure to ${
-                          customerInfo?.active ? "Inactive" : "Active"
-                        } customer?`
-                      )
-                    ) {
-                      activeInactiveCustomer();
-                    }
-                  }}
-                  defaultChecked={customerInfo?.active}
+                  checked={!!customerInfo?.active}
+                  onChange={openStatusModal}
                 />
               </div>
             </div>
@@ -556,6 +597,71 @@ const CustomerDetail = () => {
           </Tabs>
         </div>
       </div>
+
+      <Modal
+        show={statusModal}
+        onHide={() => !statusSaving && setStatusModal(false)}
+        centered
+      >
+        <Modal.Header closeButton={!statusSaving}>
+          <Modal.Title className="kyc-viewer-title">
+            Mark customer as {customerInfo?.active ? "Inactive" : "Active"}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="cd-muted-note mt-0">
+            {customerInfo?.firmName} — a remark is required to change the
+            status.
+          </p>
+          <Form.Group>
+            <Form.Label>
+              Remark <span className="text-danger">*</span>
+            </Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              maxLength={500}
+              autoFocus
+              value={statusRemark}
+              placeholder={`Reason for making this customer ${
+                customerInfo?.active ? "inactive" : "active"
+              }`}
+              isInvalid={!!statusError}
+              onChange={(e) => {
+                setStatusRemark(e.target.value);
+                if (statusError) setStatusError("");
+              }}
+            />
+            <Form.Control.Feedback type="invalid">
+              {statusError}
+            </Form.Control.Feedback>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            className="cd-btn"
+            disabled={statusSaving}
+            onClick={() => setStatusModal(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant={customerInfo?.active ? "danger" : "success"}
+            className="cd-btn"
+            disabled={statusSaving || !statusRemark.trim()}
+            onClick={activeInactiveCustomer}
+          >
+            {statusSaving ? (
+              <Spinner as="span" animation="border" size="sm" />
+            ) : customerInfo?.active ? (
+              "Mark Inactive"
+            ) : (
+              "Mark Active"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Layout>
   );
 };

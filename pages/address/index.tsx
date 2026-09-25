@@ -83,7 +83,7 @@ export default function Login() {
     // Re-count after a sync and whenever a list/form is switched (add, edit, delete)
     useEffect(() => { fetchCounts() }, [refreshKey, componentVisible])
     const handleSyncFromSfa = async () => {
-        if (!window.confirm('Pull all countries, states, districts and cities from GG SFA now?')) return
+        if (!window.confirm('Pull all countries, states, districts, cities and pincodes from GG SFA now?')) return
         setSyncing(true)
         setSyncMessage(null)
         try {
@@ -97,7 +97,7 @@ export default function Login() {
                 const part = (label: string, v: any) => v ? `${label} ${v.received}${v.failed ? ` (${v.failed} failed)` : ''}` : null
                 setSyncMessage({
                     ok: true,
-                    text: 'Synced from GG SFA: ' + [part('Countries', d.countries), part('States', d.states), part('Districts', d.districts), part('Cities', d.cities)].filter(Boolean).join(' · '),
+                    text: 'Synced from GG SFA: ' + [part('Countries', d.countries), part('States', d.states), part('Districts', d.districts), part('Cities', d.cities), part('Pincodes', d.pincodes)].filter(Boolean).join(' · '),
                 })
             }
             setRefreshKey((k) => k + 1)
@@ -133,7 +133,7 @@ export default function Login() {
                 <div className="am-header">
                     <div>
                         <h3 className="mb-1">Address Master</h3>
-                        <p className="am-subtitle mb-0">Countries, states, districts and cities. Locations from GG SFA sync automatically.</p>
+                        <p className="am-subtitle mb-0">Countries, states, districts, cities and pincodes. Changes made in GG SFA show up here right away.</p>
                     </div>
                     <div className="am-header-actions">
                         <Button variant="outline-secondary" className="cd-btn cd-btn-outline" disabled={syncing} onClick={handleSyncFromSfa}>

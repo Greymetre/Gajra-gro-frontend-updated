@@ -139,8 +139,13 @@ const KycImageViewer = ({
   const run = async (kind: "verify" | "reject") => {
     setBusy(kind);
     try {
+      // The parent refreshes the KYC data on success; close so the updated
+      // page is visible straight away.
       const ok = await (kind === "verify" ? onVerify() : onReject());
-      if (ok) setResult(kind === "verify" ? "verified" : "rejected");
+      if (ok) {
+        setResult(kind === "verify" ? "verified" : "rejected");
+        onHide();
+      }
     } finally {
       setBusy(null);
     }

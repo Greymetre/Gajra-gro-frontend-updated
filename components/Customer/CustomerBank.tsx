@@ -100,13 +100,28 @@ const CustomerBank = ({
 
 
   const [aadharBackImage, setAadharBackImage] = useState<string | null>(null);
-  
+  // Fresh customer record, refetched after verify/reject so the page reflects
+  // the new status without a browser refresh. Falls back to the parent prop.
+  const [liveInfo, setLiveInfo] = useState<any>(null);
+  const kyc = liveInfo || customerInfo;
+
+  // Only refreshes status flags; keeps any unsaved edits in the form.
+  const refreshKycStatus = async () => {
+    await backendGetCustomerInfo(customerid).then((res) => {
+      if (!res.isError) {
+        setLiveInfo(res.data);
+        setCustomerBankInfo(res.data);
+      }
+    });
+  };
+
   const fetchCustomerBankDetail = async () => {
     await backendGetCustomerInfo(customerid).then((res) => {
       console.log("resresresresresresresres" , res)
       if (!res.isError) {
         console.log( "0-0-0-0-0-0-0-0-" , res.data);
         setCustomerBankInfo(res.data);
+        setLiveInfo(res.data);
         for (const [key, value] of Object.entries(res.data)) {
           if (initialKycData.hasOwnProperty(key)) {
             formik.setFieldValue(key, value);
@@ -114,25 +129,25 @@ const CustomerBank = ({
             console.log("this are the key val;ue" , key, value)
           }
           if (key === "gstinImage" && typeof value === "string") {
-            setGstinImage(IMAGE_URL + value);
+            setGstinImage(value ? IMAGE_URL + value : null);
           }
           if (key === "panImage" && typeof value === "string") {
-            setPanImage(IMAGE_URL + value);
+            setPanImage(value ? IMAGE_URL + value : null);
           }
           if (key === "aadharFrontImage" && typeof value === "string") {
-            setAadharImage(IMAGE_URL + value);
+            setAadharImage(value ? IMAGE_URL + value : null);
           }
           if (key === "aadharBackImage" && typeof value === "string") {
-            setAadharBackImage(IMAGE_URL + value);
+            setAadharBackImage(value ? IMAGE_URL + value : null);
           }
           if (key === "otherFrontImage" && typeof value === "string") {
-            setOtherImage(IMAGE_URL + value);
+            setOtherImage(value ? IMAGE_URL + value : null);
           }
           if (key === "passbookImage" && typeof value === "string") {
-            setPassBookImage(IMAGE_URL + value);
+            setPassBookImage(value ? IMAGE_URL + value : null);
           }
           if (key === "upiImage" && typeof value === "string") {
-            setUpiImage(IMAGE_URL + value);
+            setUpiImage(value ? IMAGE_URL + value : null);
           }
         }
       }
@@ -207,25 +222,22 @@ console.log("customeridcustomerid" , customerid)
   // Both return true on success so the image viewer can update its status.
   const handelCustomerkycVerified = async (iData: any) => {
     if (window.confirm("Are you sure to verified this kyc?")) {
-      return await backendCustomerkycVerified(iData).then((res) => {
-        if (res.isError == false) {
-          setCustomerBankInfo(res.data);
-          return true;
-        }
-        return false;
-      });
+      const ok = await backendCustomerkycVerified(iData).then(
+        (res) => res.isError == false
+      );
+      if (ok) await refreshKycStatus();
+      return ok;
     }
     return false;
   };
   const handelCustomerkycRejected = async (iData: any) => {
     if (window.confirm("Are you sure to reject this kyc?")) {
-      return await backendCustomerkycRejected(iData).then((res) => {
-        if (res.isError == false) {
-          setCustomerBankInfo(res.data);
-          return true;
-        }
-        return false;
-      });
+      const ok = await backendCustomerkycRejected(iData).then(
+        (res) => res.isError == false
+      );
+      // Reject clears the document number/image on the backend, so reload all.
+      if (ok) await fetchCustomerBankDetail();
+      return ok;
     }
     return false;
   };
@@ -341,12 +353,13 @@ console.log("customeridcustomerid" , customerid)
             });
           }
         }}
-        defaultChecked={defaultChecked}
+        checked={!!defaultChecked}
       />
       <Form.Check
         className="text-danger"
         type="switch"
         label="Reject"
+        checked={false}
         onChange={(e) => {
           const { value, checked } = e.target;
           if (checked) {
@@ -365,7 +378,7 @@ console.log("customeridcustomerid" , customerid)
     null
   );
   const customerName =
-    customerInfo?.contactPerson || customerInfo?.firmName || "";
+    kyc?.contactPerson || kyc?.firmName || "";
   const kycDocs: Record<
     KycDocKey,
     {
@@ -382,11 +395,11 @@ console.log("customeridcustomerid" , customerid)
       images: [{ src: gstinImage || "", label: "GSTIN" }],
       fields: [
         { label: "GSTIN No", value: formik.values.gstinNo },
-        { label: "Firm Name", value: customerInfo?.firmName },
+        { label: "Firm Name", value: kyc?.firmName },
       ],
       verifiedTo: "verified.gstinVerified",
-      verified: customerInfo.gstinVerified,
-      canVerify: !!(customerInfo.gstinImage || customerInfo.gstinNo),
+      verified: kyc?.gstinVerified,
+      canVerify: !!(kyc?.gstinImage || kyc?.gstinNo),
     },
     pan: {
       title: "PAN",
@@ -394,11 +407,11 @@ console.log("customeridcustomerid" , customerid)
       fields: [
         { label: "PAN No", value: formik.values.panNo },
         { label: "Customer Name", value: customerName },
-        { label: "Firm Name", value: customerInfo?.firmName },
+        { label: "Firm Name", value: kyc?.firmName },
       ],
       verifiedTo: "verified.panVerified",
-      verified: customerInfo.panVerified,
-      canVerify: !!(customerInfo.panImage || customerInfo.panNo),
+      verified: kyc?.panVerified,
+      canVerify: !!(kyc?.panImage || kyc?.panNo),
     },
     aadhar: {
       title: "Aadhar",
@@ -411,14 +424,14 @@ console.log("customeridcustomerid" , customerid)
         { label: "Customer Name", value: customerName },
         {
           label: "Address on Record",
-          value: [customerInfo?.address, customerInfo?.city, customerInfo?.state]
+          value: [kyc?.address, kyc?.city, kyc?.state]
             .filter(Boolean)
             .join(", "),
         },
       ],
       verifiedTo: "verified.aadharVerified",
-      verified: customerInfo.aadharVerified,
-      canVerify: !!(customerInfo.aadharFrontImage || customerInfo.aadharNo),
+      verified: kyc?.aadharVerified,
+      canVerify: !!(kyc?.aadharFrontImage || kyc?.aadharNo),
     },
     other: {
       title: "Other Document",
@@ -428,8 +441,8 @@ console.log("customeridcustomerid" , customerid)
         { label: "Customer Name", value: customerName },
       ],
       verifiedTo: "verified.otherVerified",
-      verified: customerInfo.otherVerified,
-      canVerify: !!(customerInfo.otherFrontImage || customerInfo.otherNo),
+      verified: kyc?.otherVerified,
+      canVerify: !!(kyc?.otherFrontImage || kyc?.otherNo),
     },
     bank: {
       title: "Bank / Passbook",
@@ -442,7 +455,7 @@ console.log("customeridcustomerid" , customerid)
         { label: "Customer Name", value: customerName },
       ],
       verifiedTo: "verified.bankVerified",
-      verified: customerInfo.bankVerified,
+      verified: kyc?.bankVerified,
       canVerify: true,
     },
     upi: {
@@ -451,10 +464,10 @@ console.log("customeridcustomerid" , customerid)
       fields: [
         { label: "UPI Number", value: formik.values.upiNumber },
         { label: "Customer Name", value: customerName },
-        { label: "Mobile", value: customerInfo?.mobile },
+        { label: "Mobile", value: kyc?.mobile },
       ],
       verifiedTo: "verified.upiVerified",
-      verified: customerInfo?.upiVerified,
+      verified: kyc?.upiVerified,
       canVerify: true,
     },
   };
@@ -552,14 +565,14 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>GSTIN</h6>
-            {(customerInfo.gstinImage || customerInfo.gstinNo) &&
-              renderStatus(customerInfo.gstinVerified)}
+            {(kyc?.gstinImage || kyc?.gstinNo) &&
+              renderStatus(kyc?.gstinVerified)}
           </div>
-          {(customerInfo.gstinImage || customerInfo.gstinNo) &&
+          {(kyc?.gstinImage || kyc?.gstinNo) &&
             renderVerifyControls(
               "verified.gstinVerified",
               "gstin",
-              customerInfo.gstinVerified
+              kyc?.gstinVerified
             )}
         </div>
         <Row className="g-3">
@@ -579,14 +592,14 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>PAN</h6>
-            {(customerInfo.panImage || customerInfo.panNo) &&
-              renderStatus(customerInfo.panVerified)}
+            {(kyc?.panImage || kyc?.panNo) &&
+              renderStatus(kyc?.panVerified)}
           </div>
-          {(customerInfo.panImage || customerInfo.panNo) &&
+          {(kyc?.panImage || kyc?.panNo) &&
             renderVerifyControls(
               "verified.panVerified",
               "pan",
-              customerInfo.panVerified
+              kyc?.panVerified
             )}
         </div>
         <Row className="g-3">
@@ -606,14 +619,14 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>Aadhar</h6>
-            {(customerInfo.aadharFrontImage || customerInfo.aadharNo) &&
-              renderStatus(customerInfo.aadharVerified)}
+            {(kyc?.aadharFrontImage || kyc?.aadharNo) &&
+              renderStatus(kyc?.aadharVerified)}
           </div>
-          {(customerInfo.aadharFrontImage || customerInfo.aadharNo) &&
+          {(kyc?.aadharFrontImage || kyc?.aadharNo) &&
             renderVerifyControls(
               "verified.aadharVerified",
               "aadhar",
-              customerInfo.aadharVerified
+              kyc?.aadharVerified
             )}
         </div>
         <Row className="g-3">
@@ -638,14 +651,14 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>Other Document</h6>
-            {(customerInfo.otherFrontImage || customerInfo.otherNo) &&
-              renderStatus(customerInfo.otherVerified)}
+            {(kyc?.otherFrontImage || kyc?.otherNo) &&
+              renderStatus(kyc?.otherVerified)}
           </div>
-          {(customerInfo.otherFrontImage || customerInfo.otherNo) &&
+          {(kyc?.otherFrontImage || kyc?.otherNo) &&
             renderVerifyControls(
               "verified.otherVerified",
               "other",
-              customerInfo.otherVerified
+              kyc?.otherVerified
             )}
         </div>
         <Row className="g-3">
@@ -665,12 +678,12 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>Bank / Passbook</h6>
-            {renderStatus(customerInfo.bankVerified)}
+            {renderStatus(kyc?.bankVerified)}
           </div>
           {renderVerifyControls(
             "verified.bankVerified",
             "bank",
-            customerInfo.bankVerified
+            kyc?.bankVerified
           )}
         </div>
         <Row className="g-3">
@@ -707,12 +720,12 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>UPI</h6>
-            {renderStatus(customerInfo?.upiVerified)}
+            {renderStatus(kyc?.upiVerified)}
           </div>
           {renderVerifyControls(
             "verified.upiVerified",
             "upi",
-            customerInfo?.upiVerified
+            kyc?.upiVerified
           )}
         </div>
         <Row className="g-3">

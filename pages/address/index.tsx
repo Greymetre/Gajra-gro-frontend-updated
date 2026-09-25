@@ -12,6 +12,7 @@ import CountryList from '../../components/AddressMaster/CountryList';
 import StateList from '../../components/AddressMaster/StateList';
 import CityList from '../../components/AddressMaster/CityList';
 import DistrictList from '../../components/AddressMaster/DistrictList';
+import PincodeList from '../../components/AddressMaster/PincodeList';
 import AddCity from '../../components/AddressMaster/AddCity';
 
 import { CUSTOMER_DEMO_IMAGE, EDIT_DEMO_IMAGE, EXCEL_DEMO_IMAGE, IMAGE_URL, PROFILE_DEMO_IMAGE, WHITE_FILTER_IMAGE, WHITE_PLUS_CIRCLE_IMAGE } from '../../utils/constant'
@@ -113,15 +114,17 @@ export default function Login() {
         { key: 'DistrictList', label: 'Districts', count: counts?.districts, match: ['DistrictList'] },
         { key: 'StateList', label: 'States', count: counts?.states, match: ['StateList', 'AddState', 'EditState'] },
         { key: 'CountyList', label: 'Countries', count: counts?.countries, match: ['CountyList', 'AddCountry', 'EditCountry'] },
+        { key: 'PincodeList', label: 'Pincodes', count: counts?.pincodes, match: ['PincodeList'] },
     ]
     const statCards = [
         { key: 'CountyList', label: 'Countries', icon: '🌍', tone: 'cd-stat-blue', value: counts?.countries },
         { key: 'StateList', label: 'States', icon: '🗺️', tone: 'cd-stat-green', value: counts?.states },
         { key: 'DistrictList', label: 'Districts', icon: '📍', tone: 'cd-stat-amber', value: counts?.districts },
         { key: 'CityList', label: 'Cities', icon: '🏙️', tone: 'cd-stat-red', value: counts?.cities },
+        { key: 'PincodeList', label: 'Pincodes', icon: '📮', tone: 'cd-stat-blue', value: counts?.pincodes },
     ]
     const titles: Record<string, string> = {
-        CityList: 'Cities', DistrictList: 'Districts', StateList: 'States', CountyList: 'Countries',
+        CityList: 'Cities', DistrictList: 'Districts', StateList: 'States', CountyList: 'Countries', PincodeList: 'Pincodes',
         AddCity: 'Add City', EditCity: 'Edit City', AddState: 'Add State', EditState: 'Edit State',
         AddCountry: 'Add Country', EditCountry: 'Edit Country',
     }
@@ -152,9 +155,9 @@ export default function Login() {
                     </div>
                 ) : null}
 
-                <Row className="g-3 mb-4">
+                <Row className="g-3 mb-4 am-stat-row">
                     {statCards.map((c) => (
-                        <Col xl={3} sm={6} xs={12} key={c.key}>
+                        <Col sm={6} xs={12} key={c.key}>
                             <button type="button" className={`cd-stat am-stat ${c.tone}`} onClick={() => setComponentVisible(c.key)}>
                                 <div className="cd-stat-icon am-stat-emoji">{c.icon}</div>
                                 <div className="text-start">
@@ -192,7 +195,8 @@ export default function Login() {
                     <div className="am-body" key={refreshKey}>
                         {componentVisible === "CountyList" ? (<CountryList key="CountyList2" handleVisible={handleComponentVisible} handleEditCountry={handleEditCountry} />) : null}
                         {(componentVisible === "StateList") ? (<StateList key="StateList2" handleVisible={handleComponentVisible} handleEditState={handleEditState} />) : null}
-                        {(componentVisible === "DistrictList") ? (<DistrictList key="DistrictList2" />) : null}
+                        {(componentVisible === "PincodeList") ? (<PincodeList key="PincodeList2" />) : null}
+                        {(componentVisible === "DistrictList") ? (<DistrictList key="DistrictList2" onChanged={fetchCounts} />) : null}
                         {(componentVisible === "CityList") ? (<CityList key="CityList2" handleVisible={handleComponentVisible} handleEditCity={handleEditCity} />) : null}
                         {(componentVisible === "AddCountry" || componentVisible === "EditCountry") ? (<AddCountry handleVisible={handleComponentVisible} initialCountyData={initialCountyData} />) : null}
                         {(componentVisible === "AddState" || componentVisible === "EditState") ? (<AddState handleVisible={handleComponentVisible} initialStateData={initialStateData} />) : null}

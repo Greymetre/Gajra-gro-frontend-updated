@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { Form, Table, Spinner, Button } from 'react-bootstrap';
-import { backendGetAllDistricts } from "../../helpers/backend_helper"
+import { Form, Table, Spinner, Button, Image } from 'react-bootstrap';
+import { backendDeleteDistrict, backendGetAllDistricts } from "../../helpers/backend_helper"
+import { IMAGE_URL, RED_TRASH_IMAGE } from '../../utils/constant'
 import { AddressDistrictViewInterface } from '../../interfaces/address.interface';
 
 const PAGE_SIZE = 50;
 
-// Districts come from GG SFA (synced automatically), so this list is read-only
-export default function DistrictList() {
+// Districts come from GG SFA (synced automatically); here they can only be deleted
+export default function DistrictList(props: any) {
     const [isLoading, setIsLoading] = useState(true)
     const [districts, setDistricts] = useState<Array<AddressDistrictViewInterface>>([])
     const [search, setSearch] = useState('')
@@ -14,13 +15,27 @@ export default function DistrictList() {
     const [statusFilter, setStatusFilter] = useState('')
     const [page, setPage] = useState(1)
 
-    useEffect(() => {
+    const fetchDistricts = () => {
         backendGetAllDistricts({}).then((res) => {
             setDistricts(Array.isArray(res?.data) ? res.data : [])
         }).catch(() => {
             setDistricts([])
         }).finally(() => setIsLoading(false))
-    }, [])
+    }
+    useEffect(() => { fetchDistricts() }, [])
+
+    const handleDeleteItem = (item: AddressDistrictViewInterface) => {
+        const note = item.sfaId ? '\n\nThis district came from GG SFA. If it still exists in SFA it will be added back by the next sync, so delete it in SFA too.' : ''
+        if (!window.confirm(`Delete district "${item.districtName}"? Its cities are kept.${note}`)) return
+        backendDeleteDistrict(item._id).then((result) => {
+            if (!result?.isError) {
+                fetchDistricts()
+                props.onChanged?.()
+            }
+        }).catch(() => {
+            window.alert('Unable to delete district. Please try again.')
+        })
+    }
 
     const states = useMemo(
         () => Array.from(new Set(districts.map((d) => d.state).filter(Boolean) as string[])).sort(),
@@ -68,7 +83,7 @@ export default function DistrictList() {
                     />
                 </div>
             </div>
-            <p className="am-note">Districts are synced automatically from GG SFA. Add or edit them in SFA.</p>
+            <p className="am-note">Districts are synced automatically from GG SFA. Add or edit them in SFA; a district deleted only here comes back if it still exists in SFA.</p>
 
             <div className="table-responsive cd-table-wrap">
                 <Table className="cd-table mb-0" hover>
@@ -80,11 +95,12 @@ export default function DistrictList() {
                             <th>Country</th>
                             <th>Status</th>
                             <th>Source</th>
+                            <th className="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {isLoading ? (
-                            <tr><td colSpan={6} className="cd-empty"><Spinner animation="border" size="sm" /></td></tr>
+                            <tr><td colSpan={7} className="cd-empty"><Spinner animation="border" size="sm" /></td></tr>
                         ) : rows.length ? rows.map((item, index) => (
                             <tr key={item._id}>
                                 <td className="cd-cell-ref">{(page - 1) * PAGE_SIZE + index + 1}</td>
@@ -97,9 +113,12 @@ export default function DistrictList() {
                                     </span>
                                 </td>
                                 <td>{item.sfaId ? <span className="am-source">GG SFA</span> : <span className="am-source am-source-gro">GRO</span>}</td>
+                                <td className="text-end">
+                                    <a className="am-icon-btn am-icon-danger" title="Delete" onClick={() => { handleDeleteItem(item) }}><Image src={IMAGE_URL + RED_TRASH_IMAGE} /></a>
+                                </td>
                             </tr>
                         )) : (
-                            <tr><td colSpan={6} className="cd-empty">
+                            <tr><td colSpan={7} className="cd-empty">
                                 {districts.length ? 'No districts match the filters' : 'No districts yet. Use "Sync from GG SFA" to import them.'}
                             </td></tr>
                         )}

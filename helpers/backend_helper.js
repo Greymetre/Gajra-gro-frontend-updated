@@ -270,6 +270,10 @@ export const backendgetRemark = (data) => post(url.POST_REMARK_, data);
 // Get all districts: { stateid?, state?, active? }
 export const backendGetAllDistricts = (data = {}) =>
   post(url.GET_ALL_DISTRICTS, data);
+// City pincodes, one row each: { currentPage, recordPerPage, search }
+export const backendGetAllPincodes = (data) => post(url.GET_ALL_PINCODES, data);
+// Delete District
+export const backendDeleteDistrict = (id) => del(`${url.MODULE_DISTRICT}/${id}`);
 // Country / state / district / city counts
 export const backendGetLocationCounts = () => get(url.GET_LOCATION_COUNTS);
 // Pull countries / states / districts / cities from GG SFA now

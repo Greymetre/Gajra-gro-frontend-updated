@@ -4952,3 +4952,10 @@ color:black !important;
   background: #111;
   color: #fff;
 }
+/* Five count cards in one row on wide screens */
+@media (min-width: 1200px) {
+  .am-stat-row > .col-sm-6 {
+    flex: 0 0 20%;
+    max-width: 20%;
+  }
+}

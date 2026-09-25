@@ -78,6 +78,8 @@ export const GET_ALLCITY = "/user/city/all";
 export const POST_CITY_STATUS = "/user/city/updateStatus";
 export const POST_STATE_CITYLIST = "/user/city/getStateCities";
 export const GET_ALL_DISTRICTS = "/user/district/all";
+export const MODULE_DISTRICT = "/user/district";
+export const GET_ALL_PINCODES = "/user/district/pincodes";
 export const POST_SYNC_LOCATIONS_FROM_SFA = "/user/district/syncFromSfa";
 export const GET_LOCATION_COUNTS = "/user/district/counts";
 //Attendance Routes

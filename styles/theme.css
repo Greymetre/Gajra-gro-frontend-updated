@@ -4697,3 +4697,23 @@ color:black !important;
   background: #fdecec;
   color: #b42318;
 }
+
+/* Restore Bootstrap's modal centering: the .modal-dialog margin above
+   overrides Bootstrap's auto margins, pushing every dialog to the left. */
+@media (min-width: 576px) {
+  .modal-dialog {
+    max-width: var(--bs-modal-width);
+    margin: 1.75rem auto;
+  }
+  .modal-dialog-centered {
+    min-height: calc(100% - 3.5rem);
+  }
+}
+
+/* .btn-success sets hover text to the same green as its background,
+   which hides the label on hover. */
+.btn-success {
+  --bs-btn-hover-color: #ffffff;
+  --bs-btn-hover-bg: #1fb338;
+  --bs-btn-hover-border-color: #1fb338;
+}

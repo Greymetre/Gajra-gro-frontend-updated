@@ -61,27 +61,25 @@ const schema = yup.object().shape({
   name: yup
     .string()
     .min(4, "Mininum 4 characters")
-    .max(150, "Maximum 130 characters")
+    .max(150, "Maximum 150 characters")
     .required("productname is required"),
-  brand: yup.string().min(3).required("brand is required"),
-  model: yup.string().required("brand is required"),
-  discount: yup.string().required("discount is required"),
+  // Optional fields mirror the backend CreateProductDto; older/imported
+  // products often have them empty and must still be editable.
+  brand: yup.string().nullable(),
+  model: yup.string().nullable(),
+  discount: yup.number().nullable(),
   productDetail: yup.array().of(
     yup.object().shape({
       price: yup.number().required("price is required"),
       mrp: yup.number().required("mrp Name is required"),
-      partNo: yup.string().required("  partNo is required"),
-      specification: yup.string().required("  specification Name is required"),
+      partNo: yup.string().nullable(),
+      specification: yup.string().nullable(),
     }),
   ),
-  ranking: yup.number().required("ranking is required"),
-  description: yup.string().required("   description is required"),
-  productNo: yup
-    .string()
-    .min(2, "Mininum 2 characters")
-    .max(70, "Maximum 70 characters")
-    .required("productNo is required"),
-  points: yup.number(),
+  ranking: yup.number().nullable(),
+  description: yup.string().nullable(),
+  productNo: yup.string().max(70, "Maximum 70 characters").nullable(),
+  points: yup.number().nullable(),
 });
 
 function readXlsxFile(file: File): Promise<KeyValue[]> {
@@ -485,6 +483,12 @@ const iData = await objectAppendIntoformData(
                           <Image src={IMAGE_URL + WHITE_CHECKED_IMAGE} />{" "}
                           Save{" "}
                         </Button>
+                        {!formik.isValid && (
+                          <div className="text-danger small mt-2">
+                            Fix before saving:{" "}
+                            {JSON.stringify(formik.errors).replace(/[{}\[\]"]/g, " ")}
+                          </div>
+                        )}
                       </Col>
                     </Row>
                   </Col>
@@ -560,7 +564,7 @@ const iData = await objectAppendIntoformData(
                         <Form.Control
                           type="number"
                           name="discount"
-                          value={formik.values.discount.toString()}
+                          value={formik.values.discount ?? ""}
                           onChange={handleInputChange}
                           onBlur={formik.handleBlur}
                           autoComplete="off"
@@ -581,7 +585,7 @@ const iData = await objectAppendIntoformData(
                           name="ranking"
                           onChange={handleInputChange}
                           onBlur={formik.handleBlur}
-                          value={formik.values.ranking.toString()}
+                          value={formik.values.ranking ?? ""}
                           autoComplete="off"
                           placeholder="Ranking"
                         />

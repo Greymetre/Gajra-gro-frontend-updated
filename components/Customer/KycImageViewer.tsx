@@ -11,6 +11,16 @@ export interface KycViewerField {
   value?: any;
 }
 
+/** The document number the admin cross-checks (or types in) before verifying. */
+export interface KycViewerNumberField {
+  label: string;
+  value?: string;
+  placeholder?: string;
+  uppercase?: boolean;
+  /** Returns an error message, or null when the value is acceptable. */
+  validate?: (value: string) => string | null;
+}
+
 const LENS_SIZE = 180;
 const MIN_ZOOM = 1.5;
 const MAX_ZOOM = 6;
@@ -103,9 +113,11 @@ const KycImageViewer = ({
   images,
   initialIndex = 0,
   fields,
+  numberField,
   verified,
   canVerify,
   onVerify,
+  onUnverify,
   onReject,
 }: {
   show: boolean;
@@ -114,49 +126,71 @@ const KycImageViewer = ({
   images: KycViewerImage[];
   initialIndex?: number;
   fields: KycViewerField[];
+  numberField?: KycViewerNumberField;
   verified?: boolean;
   canVerify: boolean;
-  onVerify: () => Promise<boolean | void>;
+  /** Receives the (possibly edited) document number. */
+  onVerify: (docNo?: string) => Promise<boolean | void>;
+  onUnverify?: () => Promise<boolean | void>;
   onReject: () => Promise<boolean | void>;
 }) => {
   const [index, setIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(2.5);
   const [rotation, setRotation] = useState(0);
   const [lensEnabled, setLensEnabled] = useState(true);
-  const [busy, setBusy] = useState<"verify" | "reject" | null>(null);
-  const [result, setResult] = useState<"verified" | "rejected" | null>(null);
+  const [busy, setBusy] = useState<"verify" | "unverify" | "reject" | null>(
+    null
+  );
+  const [docNo, setDocNo] = useState("");
+  // A verified number is locked until the admin chooses to edit it.
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (show) {
       setIndex(initialIndex);
       setRotation(0);
-      setResult(null);
+      setDocNo(numberField?.value || "");
+      setEditing(false);
     }
   }, [show, initialIndex]);
 
-  const current = images[index];
+  // Keep the input in sync when the parent reloads the record (e.g. after
+  // un-verifying) while the admin is not typing.
+  useEffect(() => {
+    if (show && !editing) setDocNo(numberField?.value || "");
+  }, [numberField?.value]);
 
-  const run = async (kind: "verify" | "reject") => {
+  const current = images[index];
+  const numberLocked = !!verified && !editing;
+  const trimmedNo = docNo.trim();
+  const numberError =
+    numberField && trimmedNo
+      ? numberField.validate?.(trimmedNo) || null
+      : null;
+  const numberMissing = !!numberField && !trimmedNo;
+
+  const run = async (kind: "verify" | "unverify" | "reject") => {
     setBusy(kind);
     try {
-      // The parent refreshes the KYC data on success; close so the updated
-      // page is visible straight away.
-      const ok = await (kind === "verify" ? onVerify() : onReject());
-      if (ok) {
-        setResult(kind === "verify" ? "verified" : "rejected");
-        onHide();
-      }
+      const ok = await (kind === "verify"
+        ? onVerify(numberField ? trimmedNo : undefined)
+        : kind === "unverify"
+        ? onUnverify?.()
+        : onReject());
+      if (!ok) return;
+      // The parent refreshes the KYC data on success. Close after verify /
+      // reject so the updated page is visible; stay open after un-verify so
+      // the number can be corrected straight away.
+      if (kind === "unverify") setEditing(false);
+      else onHide();
     } finally {
       setBusy(null);
     }
   };
 
-  const status =
-    result === "verified" || (!result && verified)
-      ? { text: "Verified", cls: "cd-badge-success" }
-      : result === "rejected"
-      ? { text: "Rejected", cls: "cd-badge-danger" }
-      : { text: "Not Verified", cls: "cd-badge-warn" };
+  const status = verified
+    ? { text: "Verified", cls: "cd-badge-success" }
+    : { text: "Not Verified", cls: "cd-badge-warn" };
 
   return (
     <Modal
@@ -253,6 +287,38 @@ const KycImageViewer = ({
         <div className="kyc-viewer-details">
           <h6 className="cd-section-title">Cross-check Details</h6>
           <div className="kyc-viewer-fields">
+            {numberField ? (
+              <div className="cd-field">
+                <label htmlFor="kyc-viewer-docno">{numberField.label}</label>
+                <input
+                  id="kyc-viewer-docno"
+                  type="text"
+                  className={`form-control kyc-viewer-input ${
+                    numberError ? "is-invalid" : ""
+                  }`}
+                  value={docNo}
+                  readOnly={numberLocked}
+                  autoComplete="off"
+                  placeholder={
+                    numberField.placeholder || `Enter ${numberField.label}`
+                  }
+                  onChange={(e) =>
+                    setDocNo(
+                      numberField.uppercase
+                        ? e.target.value.toUpperCase()
+                        : e.target.value
+                    )
+                  }
+                />
+                {numberError ? (
+                  <div className="text-danger small">{numberError}</div>
+                ) : !numberLocked && !numberField.value ? (
+                  <div className="cd-muted-note small">
+                    Not entered yet. Type it from the image, then verify.
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {fields.map((f) => (
               <div className="cd-field" key={f.label}>
                 <label>{f.label}</label>
@@ -268,22 +334,68 @@ const KycImageViewer = ({
           <div className="kyc-viewer-actions">
             {canVerify ? (
               <>
-                <Button
-                  variant="success"
-                  className="cd-btn"
-                  disabled={!!busy || result === "verified"}
-                  onClick={() => run("verify")}
-                >
-                  {busy === "verify" ? (
-                    <Spinner as="span" animation="border" size="sm" />
-                  ) : (
-                    "✓ Verify"
-                  )}
-                </Button>
+                {numberLocked ? (
+                  <>
+                    {numberField ? (
+                      <Button
+                        variant="outline-secondary"
+                        className="cd-btn"
+                        disabled={!!busy}
+                        onClick={() => setEditing(true)}
+                      >
+                        ✎ Edit number
+                      </Button>
+                    ) : null}
+                    {onUnverify ? (
+                      <Button
+                        variant="outline-warning"
+                        className="cd-btn"
+                        disabled={!!busy}
+                        onClick={() => run("unverify")}
+                      >
+                        {busy === "unverify" ? (
+                          <Spinner as="span" animation="border" size="sm" />
+                        ) : (
+                          "↺ Unverify"
+                        )}
+                      </Button>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      variant="success"
+                      className="cd-btn"
+                      disabled={!!busy || numberMissing || !!numberError}
+                      onClick={() => run("verify")}
+                    >
+                      {busy === "verify" ? (
+                        <Spinner as="span" animation="border" size="sm" />
+                      ) : verified ? (
+                        "✓ Save & Verify"
+                      ) : (
+                        "✓ Verify"
+                      )}
+                    </Button>
+                    {editing ? (
+                      <Button
+                        variant="link"
+                        className="cd-btn"
+                        disabled={!!busy}
+                        onClick={() => {
+                          setEditing(false);
+                          setDocNo(numberField?.value || "");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    ) : null}
+                  </>
+                )}
                 <Button
                   variant="outline-danger"
                   className="cd-btn"
-                  disabled={!!busy || result === "rejected"}
+                  disabled={!!busy}
                   onClick={() => run("reject")}
                 >
                   {busy === "reject" ? (

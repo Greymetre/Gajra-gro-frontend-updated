@@ -4651,8 +4651,21 @@ color:black !important;
   border-radius: 8px;
   padding: 8px 10px;
 }
+.kyc-viewer-input {
+  font-size: 16px !important;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.kyc-viewer-input[readonly] {
+  background: #f8f9fb;
+  border-color: transparent;
+}
 .kyc-viewer-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: 20px;
   padding-top: 16px;

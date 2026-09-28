@@ -40,6 +40,7 @@ import { objectAppendIntoformData } from "../../utils/utility";
 import KycImageViewer, {
   KycViewerField,
   KycViewerImage,
+  KycViewerNumberField,
 } from "./KycImageViewer";
 const schema = yup.object().shape({
   // gstinNo: yup.string().optional().matches(/^([0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9]{1}[A-Z1-9]{1})?$/, 'Invalid GSTIN'),
@@ -230,6 +231,17 @@ console.log("customeridcustomerid" , customerid)
     }
     return false;
   };
+  const handelCustomerkycUnverified = async (iData: any) => {
+    if (window.confirm("Are you sure to unverify this kyc?")) {
+      const ok = await backendCustomerkycVerified({
+        ...iData,
+        verified: false,
+      }).then((res) => res.isError == false);
+      if (ok) await refreshKycStatus();
+      return ok;
+    }
+    return false;
+  };
   const handelCustomerkycRejected = async (iData: any) => {
     if (window.confirm("Are you sure to reject this kyc?")) {
       const ok = await backendCustomerkycRejected(iData).then(
@@ -384,6 +396,7 @@ console.log("customeridcustomerid" , customerid)
     {
       title: string;
       images: KycViewerImage[];
+      numberField: KycViewerNumberField & { name: keyof typeof formik.values };
       fields: KycViewerField[];
       verifiedTo: string;
       verified?: boolean;
@@ -393,10 +406,13 @@ console.log("customeridcustomerid" , customerid)
     gstin: {
       title: "GSTIN",
       images: [{ src: gstinImage || "", label: "GSTIN" }],
-      fields: [
-        { label: "GSTIN No", value: formik.values.gstinNo },
-        { label: "Firm Name", value: kyc?.firmName },
-      ],
+      numberField: {
+        name: "gstinNo",
+        label: "GSTIN No",
+        value: formik.values.gstinNo,
+        uppercase: true,
+      },
+      fields: [{ label: "Firm Name", value: kyc?.firmName }],
       verifiedTo: "verified.gstinVerified",
       verified: kyc?.gstinVerified,
       canVerify: !!(kyc?.gstinImage || kyc?.gstinNo),
@@ -404,8 +420,15 @@ console.log("customeridcustomerid" , customerid)
     pan: {
       title: "PAN",
       images: [{ src: panImage || "", label: "PAN" }],
+      numberField: {
+        name: "panNo",
+        label: "PAN No",
+        value: formik.values.panNo,
+        uppercase: true,
+        validate: (v) =>
+          /^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(v) ? null : "Invalid PAN number",
+      },
       fields: [
-        { label: "PAN No", value: formik.values.panNo },
         { label: "Customer Name", value: customerName },
         { label: "Firm Name", value: kyc?.firmName },
       ],
@@ -419,8 +442,13 @@ console.log("customeridcustomerid" , customerid)
         { src: aadharImage || "", label: "Front" },
         { src: aadharBackImage || "", label: "Back" },
       ],
+      numberField: {
+        name: "aadharNo",
+        label: "Aadhar No",
+        value: formik.values.aadharNo,
+        validate: (v) => (/^[0-9]{12}$/.test(v) ? null : "Invalid Aadhaar No"),
+      },
       fields: [
-        { label: "Aadhar No", value: formik.values.aadharNo },
         { label: "Customer Name", value: customerName },
         {
           label: "Address on Record",
@@ -436,10 +464,12 @@ console.log("customeridcustomerid" , customerid)
     other: {
       title: "Other Document",
       images: [{ src: otherImage || "", label: "Other" }],
-      fields: [
-        { label: "Other Doc No", value: formik.values.otherNo },
-        { label: "Customer Name", value: customerName },
-      ],
+      numberField: {
+        name: "otherNo",
+        label: "Other Doc No",
+        value: formik.values.otherNo,
+      },
+      fields: [{ label: "Customer Name", value: customerName }],
       verifiedTo: "verified.otherVerified",
       verified: kyc?.otherVerified,
       canVerify: !!(kyc?.otherFrontImage || kyc?.otherNo),
@@ -447,8 +477,14 @@ console.log("customeridcustomerid" , customerid)
     bank: {
       title: "Bank / Passbook",
       images: [{ src: passbookImage || "", label: "Passbook" }],
+      numberField: {
+        name: "accountNo",
+        label: "Account No",
+        value: formik.values.accountNo,
+        validate: (v) =>
+          /^\d{9,18}$/.test(v) ? null : "Invalid Bank Account No",
+      },
       fields: [
-        { label: "Account No", value: formik.values.accountNo },
         { label: "Account Holder Name", value: formik.values.holderName },
         { label: "Bank Name", value: formik.values.bankName },
         { label: "IFSC", value: formik.values.ifsc },
@@ -461,8 +497,12 @@ console.log("customeridcustomerid" , customerid)
     upi: {
       title: "UPI",
       images: [{ src: upiImage || "", label: "UPI" }],
+      numberField: {
+        name: "upiNumber",
+        label: "UPI Number",
+        value: formik.values.upiNumber,
+      },
       fields: [
-        { label: "UPI Number", value: formik.values.upiNumber },
         { label: "Customer Name", value: customerName },
         { label: "Mobile", value: kyc?.mobile },
       ],
@@ -804,10 +844,27 @@ console.log("customeridcustomerid" , customerid)
         images={activeDoc ? activeDoc.images.filter((i) => i.src) : []}
         initialIndex={viewer?.index || 0}
         fields={activeDoc?.fields || []}
+        numberField={activeDoc?.numberField}
         verified={activeDoc?.verified}
         canVerify={!!activeDoc?.canVerify}
-        onVerify={() =>
-          handelCustomerkycVerified({
+        onVerify={async (docNo) => {
+          const ok = await handelCustomerkycVerified({
+            customerid: customerid,
+            verifiedTo: activeDoc?.verifiedTo,
+            docNo,
+          });
+          // The number is saved with the verification; mirror it in the form
+          // so a later Upload doesn't send the old value back.
+          if (ok && activeDoc && docNo !== undefined) {
+            formik.setFieldValue(
+              activeDoc.numberField.name,
+              activeDoc.numberField.uppercase ? docNo.toUpperCase() : docNo
+            );
+          }
+          return ok;
+        }}
+        onUnverify={() =>
+          handelCustomerkycUnverified({
             customerid: customerid,
             verifiedTo: activeDoc?.verifiedTo,
           })

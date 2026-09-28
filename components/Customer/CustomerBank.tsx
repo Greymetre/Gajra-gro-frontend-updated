@@ -426,8 +426,17 @@ console.log("customeridcustomerid" , customerid)
   const [viewer, setViewer] = useState<{ doc: KycDocKey; index: number } | null>(
     null
   );
-  const customerName =
-    kyc?.contactPerson || kyc?.firmName || "";
+  // Editable detail fields shown in the viewer; saved together with verify.
+  const customerNameField: KycViewerField = {
+    label: "Customer Name",
+    name: "contactPerson",
+    value: kyc?.contactPerson || "",
+  };
+  const firmNameField: KycViewerField = {
+    label: "Firm Name",
+    name: "firmName",
+    value: kyc?.firmName || "",
+  };
   const kycDocs: Record<
     KycDocKey,
     {
@@ -449,7 +458,7 @@ console.log("customeridcustomerid" , customerid)
         value: formik.values.gstinNo,
         uppercase: true,
       },
-      fields: [{ label: "Firm Name", value: kyc?.firmName }],
+      fields: [firmNameField],
       verifiedTo: "verified.gstinVerified",
       verified: kyc?.gstinVerified,
       canVerify: !!(kyc?.gstinImage || kyc?.gstinNo),
@@ -465,10 +474,7 @@ console.log("customeridcustomerid" , customerid)
         validate: (v) =>
           /^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(v) ? null : "Invalid PAN number",
       },
-      fields: [
-        { label: "Customer Name", value: customerName },
-        { label: "Firm Name", value: kyc?.firmName },
-      ],
+      fields: [customerNameField, firmNameField],
       verifiedTo: "verified.panVerified",
       verified: kyc?.panVerified,
       canVerify: !!(kyc?.panImage || kyc?.panNo),
@@ -486,7 +492,7 @@ console.log("customeridcustomerid" , customerid)
         validate: (v) => (/^[0-9]{12}$/.test(v) ? null : "Invalid Aadhaar No"),
       },
       fields: [
-        { label: "Customer Name", value: customerName },
+        customerNameField,
         {
           label: "Address on Record",
           value: [kyc?.address, kyc?.city, kyc?.state]
@@ -506,7 +512,7 @@ console.log("customeridcustomerid" , customerid)
         label: "Other Doc No",
         value: formik.values.otherNo,
       },
-      fields: [{ label: "Customer Name", value: customerName }],
+      fields: [customerNameField],
       verifiedTo: "verified.otherVerified",
       verified: kyc?.otherVerified,
       canVerify: !!(kyc?.otherFrontImage || kyc?.otherNo),
@@ -522,10 +528,21 @@ console.log("customeridcustomerid" , customerid)
           /^\d{9,18}$/.test(v) ? null : "Invalid Bank Account No",
       },
       fields: [
-        { label: "Account Holder Name", value: formik.values.holderName },
-        { label: "Bank Name", value: formik.values.bankName },
-        { label: "IFSC", value: formik.values.ifsc },
-        { label: "Customer Name", value: customerName },
+        {
+          label: "Account Holder Name",
+          name: "holderName",
+          value: formik.values.holderName,
+        },
+        { label: "Bank Name", name: "bankName", value: formik.values.bankName },
+        {
+          label: "IFSC",
+          name: "ifsc",
+          value: formik.values.ifsc,
+          uppercase: true,
+          validate: (v) =>
+            /^[A-Z]{4}0[A-Z0-9]{6}$/i.test(v) ? null : "Invalid IFSC code",
+        },
+        customerNameField,
       ],
       verifiedTo: "verified.bankVerified",
       verified: kyc?.bankVerified,
@@ -540,7 +557,7 @@ console.log("customeridcustomerid" , customerid)
         value: formik.values.upiNumber,
       },
       fields: [
-        { label: "Customer Name", value: customerName },
+        customerNameField,
         { label: "Mobile", value: kyc?.mobile },
       ],
       verifiedTo: "verified.upiVerified",
@@ -884,11 +901,12 @@ console.log("customeridcustomerid" , customerid)
         numberField={activeDoc?.numberField}
         verified={activeDoc?.verified}
         canVerify={!!activeDoc?.canVerify}
-        onVerify={async (docNo) => {
+        onVerify={async (docNo, details) => {
           const ok = await handelCustomerkycVerified({
             customerid: customerid,
             verifiedTo: activeDoc?.verifiedTo,
             docNo,
+            details,
           });
           // The number is saved with the verification; mirror it in the form
           // so a later Upload doesn't send the old value back.
@@ -897,6 +915,17 @@ console.log("customeridcustomerid" , customerid)
               activeDoc.numberField.name,
               activeDoc.numberField.uppercase ? docNo.toUpperCase() : docNo
             );
+          }
+          // Same for bank details edited in the viewer.
+          if (ok && details) {
+            (["holderName", "bankName", "ifsc"] as const).forEach((key) => {
+              if (key in details) {
+                formik.setFieldValue(
+                  key,
+                  key === "ifsc" ? details[key].toUpperCase() : details[key]
+                );
+              }
+            });
           }
           return ok;
         }}

@@ -9,6 +9,12 @@ export interface KycViewerImage {
 export interface KycViewerField {
   label: string;
   value?: any;
+  /** When set, the field is editable and saved under this key on verify. */
+  name?: string;
+  placeholder?: string;
+  uppercase?: boolean;
+  /** Returns an error message, or null when the value is acceptable. */
+  validate?: (value: string) => string | null;
 }
 
 /** The document number the admin cross-checks (or types in) before verifying. */
@@ -129,8 +135,11 @@ const KycImageViewer = ({
   numberField?: KycViewerNumberField;
   verified?: boolean;
   canVerify: boolean;
-  /** Receives the (possibly edited) document number. */
-  onVerify: (docNo?: string) => Promise<boolean | void>;
+  /** Receives the (possibly edited) document number and editable fields. */
+  onVerify: (
+    docNo?: string,
+    details?: Record<string, string>
+  ) => Promise<boolean | void>;
   onUnverify?: () => Promise<boolean | void>;
   onReject: () => Promise<boolean | void>;
 }) => {
@@ -142,23 +151,39 @@ const KycImageViewer = ({
     null
   );
   const [docNo, setDocNo] = useState("");
-  // A verified number is locked until the admin chooses to edit it.
+  const [details, setDetails] = useState<Record<string, string>>({});
+  // Verified details are locked until the admin chooses to edit them.
   const [editing, setEditing] = useState(false);
+
+  const editableFields = fields.filter((f) => f.name);
+  const initialDetails = () =>
+    editableFields.reduce<Record<string, string>>((acc, f) => {
+      acc[f.name as string] =
+        f.value !== undefined && f.value !== null ? String(f.value) : "";
+      return acc;
+    }, {});
+  const detailsKey = editableFields
+    .map((f) => `${f.name}=${f.value ?? ""}`)
+    .join("|");
 
   useEffect(() => {
     if (show) {
       setIndex(initialIndex);
       setRotation(0);
       setDocNo(numberField?.value || "");
+      setDetails(initialDetails());
       setEditing(false);
     }
   }, [show, initialIndex]);
 
-  // Keep the input in sync when the parent reloads the record (e.g. after
+  // Keep the inputs in sync when the parent reloads the record (e.g. after
   // un-verifying) while the admin is not typing.
   useEffect(() => {
-    if (show && !editing) setDocNo(numberField?.value || "");
-  }, [numberField?.value]);
+    if (show && !editing) {
+      setDocNo(numberField?.value || "");
+      setDetails(initialDetails());
+    }
+  }, [numberField?.value, detailsKey]);
 
   const current = images[index];
   const numberLocked = !!verified && !editing;
@@ -168,12 +193,29 @@ const KycImageViewer = ({
       ? numberField.validate?.(trimmedNo) || null
       : null;
   const numberMissing = !!numberField && !trimmedNo;
+  const detailErrors = editableFields.reduce<Record<string, string>>(
+    (acc, f) => {
+      const v = (details[f.name as string] || "").trim();
+      const err = v ? f.validate?.(v) : null;
+      if (err) acc[f.name as string] = err;
+      return acc;
+    },
+    {}
+  );
+  const hasDetailError = Object.keys(detailErrors).length > 0;
+  const trimmedDetails = () =>
+    Object.fromEntries(
+      Object.entries(details).map(([k, v]) => [k, (v || "").trim()])
+    );
 
   const run = async (kind: "verify" | "unverify" | "reject") => {
     setBusy(kind);
     try {
       const ok = await (kind === "verify"
-        ? onVerify(numberField ? trimmedNo : undefined)
+        ? onVerify(
+            numberField ? trimmedNo : undefined,
+            editableFields.length ? trimmedDetails() : undefined
+          )
         : kind === "unverify"
         ? onUnverify?.()
         : onReject());
@@ -319,16 +361,44 @@ const KycImageViewer = ({
                 ) : null}
               </div>
             ) : null}
-            {fields.map((f) => (
-              <div className="cd-field" key={f.label}>
-                <label>{f.label}</label>
-                <span className="kyc-viewer-value">
-                  {f.value !== undefined && f.value !== null && f.value !== ""
-                    ? String(f.value)
-                    : "-"}
-                </span>
-              </div>
-            ))}
+            {fields.map((f) =>
+              f.name ? (
+                <div className="cd-field" key={f.label}>
+                  <label htmlFor={`kyc-viewer-${f.name}`}>{f.label}</label>
+                  <input
+                    id={`kyc-viewer-${f.name}`}
+                    type="text"
+                    className={`form-control kyc-viewer-input ${
+                      detailErrors[f.name] ? "is-invalid" : ""
+                    }`}
+                    value={details[f.name] ?? ""}
+                    readOnly={numberLocked}
+                    autoComplete="off"
+                    placeholder={f.placeholder || `Enter ${f.label}`}
+                    onChange={(e) => {
+                      const value = f.uppercase
+                        ? e.target.value.toUpperCase()
+                        : e.target.value;
+                      setDetails((d) => ({ ...d, [f.name as string]: value }));
+                    }}
+                  />
+                  {detailErrors[f.name] ? (
+                    <div className="text-danger small">
+                      {detailErrors[f.name]}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="cd-field" key={f.label}>
+                  <label>{f.label}</label>
+                  <span className="kyc-viewer-value">
+                    {f.value !== undefined && f.value !== null && f.value !== ""
+                      ? String(f.value)
+                      : "-"}
+                  </span>
+                </div>
+              )
+            )}
           </div>
 
           <div className="kyc-viewer-actions">
@@ -336,14 +406,14 @@ const KycImageViewer = ({
               <>
                 {numberLocked ? (
                   <>
-                    {numberField ? (
+                    {numberField || editableFields.length ? (
                       <Button
                         variant="outline-secondary"
                         className="cd-btn"
                         disabled={!!busy}
                         onClick={() => setEditing(true)}
                       >
-                        ✎ Edit number
+                        ✎ Edit details
                       </Button>
                     ) : null}
                     {onUnverify ? (
@@ -366,7 +436,12 @@ const KycImageViewer = ({
                     <Button
                       variant="success"
                       className="cd-btn"
-                      disabled={!!busy || numberMissing || !!numberError}
+                      disabled={
+                        !!busy ||
+                        numberMissing ||
+                        !!numberError ||
+                        hasDetailError
+                      }
                       onClick={() => run("verify")}
                     >
                       {busy === "verify" ? (
@@ -385,6 +460,7 @@ const KycImageViewer = ({
                         onClick={() => {
                           setEditing(false);
                           setDocNo(numberField?.value || "");
+                          setDetails(initialDetails());
                         }}
                       >
                         Cancel

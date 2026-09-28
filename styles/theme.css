@@ -4972,3 +4972,11 @@ color:black !important;
     max-width: 20%;
   }
 }
+
+/* Unverify confirmation can open on top of the KYC image viewer modal */
+.kyc-confirm-backdrop {
+  z-index: 1060;
+}
+.kyc-confirm-modal {
+  z-index: 1065;
+}

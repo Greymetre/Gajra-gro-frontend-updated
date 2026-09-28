@@ -12,6 +12,8 @@ import {
   Tabs,
   Tab,
   ProgressBar,
+  Modal,
+  Spinner,
 } from "react-bootstrap";
 import {
   backendCustomersBankInfo,
@@ -231,16 +233,49 @@ console.log("customeridcustomerid" , customerid)
     }
     return false;
   };
-  const handelCustomerkycUnverified = async (iData: any) => {
-    if (window.confirm("Are you sure to unverify this kyc?")) {
+  // Confirmation popup for un-verifying; resolves true once the API call
+  // succeeds, false if the admin cancels or the call fails.
+  const [unverifyConfirm, setUnverifyConfirm] = useState<{
+    iData: any;
+    label: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+  const [unverifyBusy, setUnverifyBusy] = useState(false);
+  const unverifyLabels: Record<string, string> = {
+    "verified.gstinVerified": "GSTIN",
+    "verified.panVerified": "PAN",
+    "verified.aadharVerified": "Aadhar",
+    "verified.otherVerified": "Other Document",
+    "verified.bankVerified": "Bank / Passbook",
+    "verified.upiVerified": "UPI",
+  };
+  const handelCustomerkycUnverified = (iData: any) =>
+    new Promise<boolean>((resolve) => {
+      setUnverifyConfirm({
+        iData,
+        label: unverifyLabels[iData?.verifiedTo] || "this KYC document",
+        resolve,
+      });
+    });
+  const closeUnverifyConfirm = (ok: boolean) => {
+    unverifyConfirm?.resolve(ok);
+    setUnverifyConfirm(null);
+  };
+  const confirmUnverify = async () => {
+    if (!unverifyConfirm) return;
+    setUnverifyBusy(true);
+    try {
       const ok = await backendCustomerkycVerified({
-        ...iData,
+        ...unverifyConfirm.iData,
         verified: false,
       }).then((res) => res.isError == false);
       if (ok) await refreshKycStatus();
-      return ok;
+      closeUnverifyConfirm(ok);
+    } catch (e) {
+      closeUnverifyConfirm(false);
+    } finally {
+      setUnverifyBusy(false);
     }
-    return false;
   };
   const handelCustomerkycRejected = async (iData: any) => {
     if (window.confirm("Are you sure to reject this kyc?")) {
@@ -358,12 +393,14 @@ console.log("customeridcustomerid" , customerid)
         label="Verified"
         onChange={(e) => {
           const { value, checked } = e.target;
-          if (checked) {
-            handelCustomerkycVerified({
-              customerid: customerid,
-              verifiedTo: verifiedTo,
-            });
-          }
+          // Switching off un-verifies the document.
+          const handler = checked
+            ? handelCustomerkycVerified
+            : handelCustomerkycUnverified;
+          handler({
+            customerid: customerid,
+            verifiedTo: verifiedTo,
+          });
         }}
         checked={!!defaultChecked}
       />
@@ -876,6 +913,43 @@ console.log("customeridcustomerid" , customerid)
           })
         }
       />
+
+      <Modal
+        show={!!unverifyConfirm}
+        onHide={() => !unverifyBusy && closeUnverifyConfirm(false)}
+        centered
+        className="kyc-confirm-modal"
+        backdropClassName="kyc-confirm-backdrop"
+      >
+        <Modal.Header closeButton={!unverifyBusy}>
+          <Modal.Title>Unverify {unverifyConfirm?.label}?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          The {unverifyConfirm?.label} document will be marked as{" "}
+          <strong>Not Verified</strong>. You can correct the number and verify
+          it again afterwards.
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            variant="outline-secondary"
+            disabled={unverifyBusy}
+            onClick={() => closeUnverifyConfirm(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="warning"
+            disabled={unverifyBusy}
+            onClick={confirmUnverify}
+          >
+            {unverifyBusy ? (
+              <Spinner as="span" animation="border" size="sm" />
+            ) : (
+              "Yes, Unverify"
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };

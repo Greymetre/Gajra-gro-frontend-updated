@@ -11,7 +11,8 @@ import {
 import { WHITE_CHECKED_IMAGE, IMAGE_URL} from '../../utils/constant';
 import {
 
-    initialDamageEntriesData
+    initialDamageEntriesData,
+    getLocalDate
 } from '../../interfaces/coupon.interface';
 import {
     useFormik,
@@ -24,6 +25,7 @@ interface FormValues {
   customerid: string;
   couponGg: string;
   couponCode: string;
+  createdAt: string;
 
   // Add other fields as needed
 }
@@ -33,7 +35,10 @@ const schema = yup.object().shape({
     // .required('Image is required'),
   customerid: yup.string().required('Customer ID is required'),
   couponGg: yup.string().required('Coupon Gg is required'),
-  couponCode: yup.string().required('Coupon Code is required')
+  couponCode: yup.string().required('Coupon Code is required'),
+  createdAt: yup.string()
+    .required('Date is required')
+    .test('not-future', 'Date cannot be in the future', (value) => !value || value <= getLocalDate())
   });
   
 
@@ -89,6 +94,10 @@ if (Array.isArray(formik.values.couponImage)) {
     formdata.append('couponGg', formik.values.couponGg);
   }
 
+  if (formik.values.createdAt) {
+    formdata.append('createdAt', formik.values.createdAt);
+  }
+
   
   
 
@@ -122,6 +131,7 @@ const handleFormSubmittoTransaction = async () => {
         customerid : formik.values.customerid ,
         couponCode : formik.values.couponCode ,
         couponGg : formik.values.couponGg ,
+        createdAt : formik.values.createdAt ,
         statusType : 'Approved',
        }
 
@@ -153,7 +163,8 @@ const handleFormSubmittoTransaction = async () => {
 };
 
       const formik = useFormik({
-        initialValues: initialDamageEntriesData,
+        // Default date = today; set here so it is fresh on every page open
+        initialValues: { ...initialDamageEntriesData, createdAt: getLocalDate() },
         validationSchema: schema,
         onSubmit: handleFormSubmit,
       });
@@ -230,6 +241,25 @@ const handleFormSubmittoTransaction = async () => {
             <span className="text-danger">{formik.errors.customerid}</span>
           ) : null}
           <Row className='pt-4'>
+                                    <Col md={7} sm={7} xs={11} lg={4}>
+                                        <Form.Group className="form-group">
+                                            <Form.Label htmlFor="createdAt">Date</Form.Label>
+                                            <div className="mb-3">
+                                                <Form.Control className="mb-1"
+                                                    id="createdAt"
+                                                    name="createdAt"
+                                                    type="date"
+                                                    max={getLocalDate()}
+                                                    value={formik.values.createdAt}
+                                                    onChange={handleInputChange}
+                                                    required={true}
+                                                />
+                                                {formik.touched.createdAt && formik.errors.createdAt ? (
+                                                    <div className="text-danger">{formik.errors.createdAt}</div>
+                                                ) : null}
+                                            </div>
+                                        </Form.Group>
+                                    </Col>
                                     <Col md={7} sm={7} xs={11} lg={4} >
                                         <Form.Group className="form-group">
                                             <Form.Label htmlFor="Coupon">Coupon Code </Form.Label>

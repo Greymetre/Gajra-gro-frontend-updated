@@ -43,7 +43,17 @@ interface CreateDamageEntriesInterface {
   couponGg: string | undefined; 
   couponCode?: string | undefined; 
   couponImage?: string[];
+  createdAt?: string;
 }
+
+// Today's date in browser local time (YYYY-MM-DD) for date inputs
+export const getLocalDate = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 export const initialCouponProfileData: CreateCouponProfileInterface = {
     _id: '',
     // profileName:new Date().getTime().toString() + new Date().getMilliseconds().toString(),
@@ -65,7 +75,8 @@ export const initialDamageEntriesData: CreateDamageEntriesInterface = {
   couponImage:[],
   customerid:"",
   couponGg:"",
-  couponCode:""
+  couponCode:"",
+  createdAt:""
 };
 
 export interface CouponSearchInterface {

@@ -188,6 +188,12 @@ const LoyaltySchemeDetail = () => {
                   </Col>
                   <Col xl={3} sm={4} xs={6}>
                     <div className="mb-2">
+                      <p className="mb-0 f-12">Scheme Tag</p>
+                      <span className="text-muted ">{schemeInfo.schemeTag || '-'}</span>
+                    </div>
+                  </Col>
+                  <Col xl={3} sm={4} xs={6}>
+                    <div className="mb-2">
                       <p className="mb-0 f-12">SchemeType</p>
                       <span className="text-muted ">{schemeInfo.schemeType}</span>
                     </div>

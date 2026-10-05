@@ -16,6 +16,7 @@ const STATUS: { [status: string]: { label: string; colour: string } } = {
   expired: { label: 'Expired', colour: '#6b7280' },
   inactive: { label: 'Inactive', colour: '#dc2626' },
 };
+const TAG_COLOURS: { [tag: string]: string } = { Regular: '#2563eb', Booster: '#ea580c' };
 const DAY = 86400000;
 const time = (value: any) => (value ? new Date(value).getTime() : NaN);
 const schemeStatus = (item: any) => {
@@ -162,7 +163,7 @@ export default function LoyaltyScheme() {
   };
   const query = search.trim().toLowerCase();
   const visible = schemes.filter((s: any) =>
-    !query || [s.schemeName, s.schemeDescription, s.schemeType].some((v) => String(v || '').toLowerCase().includes(query))
+    !query || [s.schemeName, s.schemeDescription, s.schemeType, s.schemeTag].some((v) => String(v || '').toLowerCase().includes(query))
   );
   const sections = [
     { key: 'live', title: 'Live Schemes', hint: 'points credited on every scan', items: visible.filter((s: any) => s.status === 'live') },
@@ -205,6 +206,11 @@ export default function LoyaltyScheme() {
           </div>
 
           <div className='ls-chips'>
+            {item.schemeTag ? (
+              <span className='ls-chip' style={{ fontWeight: 700, background: TAG_COLOURS[item.schemeTag] + '1a', color: TAG_COLOURS[item.schemeTag] }}>
+                {item.schemeTag === 'Booster' ? '⚡ ' : ''}{item.schemeTag}
+              </span>
+            ) : null}
             {item.schemeType ? <span className='ls-chip'>{item.schemeType}</span> : null}
             {item.basedOn ? <span className='ls-chip'>{categories.length ? 'Mechanic Category %' : 'Based on ' + item.basedOn}</span> : null}
             {customerTypes.map((type: string) => <span className='ls-chip' key={type}>{type}</span>)}

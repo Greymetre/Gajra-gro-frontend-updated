@@ -26,6 +26,8 @@ export interface LoyaltySchemeInterface {
   active?: boolean;
   // basedOn "Percentage": total % of the normal schemes' points per mechanic category
   categoryPercentages?: CategoryPercentageInterface[];
+  // "Regular" (base points) or "Booster" (extra points on top)
+  schemeTag?: string;
 }
 
 export interface CategoryPercentageInterface {
@@ -64,6 +66,7 @@ export const initialLoyaltyScheme = {
   active:true,
   customers: [],
   categoryPercentages: [] as CategoryPercentageInterface[],
+  schemeTag: "Regular",
   schemeDetail: [{
     detailName: "",
     categories: [],

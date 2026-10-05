@@ -76,6 +76,7 @@ const schema = yup.object().shape({
   schemeName: yup.string().min(3).required("schemeName is required"),
   basedOn: yup.string().required("basedon is required"),
   frequency: yup.string().required("frequency is required"),
+  schemeTag: yup.string().oneOf(["Regular", "Booster"]).required("choose Regular or Booster"),
   customers: yup.array().required("customers is required"),
   customerType: yup.array().required("customerType Name is required"),
   schemeDescription: yup.string().required("description code is required"),
@@ -154,6 +155,7 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
           ...scheme,
           schemeDetail: details,
           categoryPercentages: Array.isArray(scheme.categoryPercentages) ? scheme.categoryPercentages : [],
+          schemeTag: scheme.schemeTag || "",
         });
       }
     });
@@ -636,6 +638,41 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                         <div className="text-danger">
                           {formik.errors.frequency}
                         </div>
+                      )}
+                    </Form.Group>
+                  </Col>
+                  <Col md={4} sm={6} xs={12} className="mb-2">
+                    <Form.Group className="mb-1">
+                      <Form.Label>Scheme Tag</Form.Label>
+                      <div className="d-flex gap-2">
+                        {[
+                          { value: "Regular", hint: "Base points", colour: "#2563eb" },
+                          { value: "Booster", hint: "Extra points on top", colour: "#ea580c" },
+                        ].map((tag) => {
+                          const on = formik.values.schemeTag === tag.value;
+                          return (
+                            <button
+                              key={tag.value}
+                              type="button"
+                              onClick={() => formik.setFieldValue("schemeTag", tag.value)}
+                              style={{
+                                flex: 1,
+                                textAlign: "left",
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                border: on ? `2px solid ${tag.colour}` : "1px solid #d1d5db",
+                                background: on ? tag.colour + "14" : "#fff",
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              <div style={{ fontWeight: 700, color: on ? tag.colour : "#111827" }}>{tag.value}</div>
+                              <div style={{ fontSize: 12, color: "#6b7280" }}>{tag.hint}</div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {formik.errors.schemeTag && (
+                        <div className="text-danger">{formik.errors.schemeTag as string}</div>
                       )}
                     </Form.Group>
                   </Col>

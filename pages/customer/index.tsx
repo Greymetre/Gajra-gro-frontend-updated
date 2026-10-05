@@ -27,6 +27,7 @@ import {
   backendCustomerImport,
   backendDeleteCustomer,
   backendGetAllCustomers,
+  backendRefreshMechanicCategories,
 } from "../../helpers/backend_helper";
 import Link from "next/link";
 import editimg from "../../assets/images/auth/edit-3.svg";
@@ -196,6 +197,27 @@ const Customer = React.forwardRef((props, ref) => {
     fetchCustomers();
   }, [paginationData, filterData]);
 
+  // Manual sync of mechanic categories (the backend also does it every night)
+  const [categoryRefreshing, setCategoryRefreshing] = useState(false);
+  const [categoryRefreshResult, setCategoryRefreshResult] = useState("");
+  const handleRefreshMechanicCategories = async () => {
+    setCategoryRefreshing(true);
+    setCategoryRefreshResult("");
+    try {
+      const res: any = await backendRefreshMechanicCategories();
+      const data = res?.data || {};
+      const counts = data.counts || {};
+      setCategoryRefreshResult(
+        `Categories updated (${data.period || ""}): ` +
+          MECHANIC_CATEGORIES.map((c) => `${c} ${counts[c] ?? 0}`).join(", ")
+      );
+      fetchCustomers();
+    } catch (e) {
+      setCategoryRefreshResult("Category refresh failed, please try again.");
+    }
+    setCategoryRefreshing(false);
+  };
+
   const handleEditCustomer = (user: any) => {
     window.scrollTo(0, 0);
     setInitialCustomerData(user);
@@ -358,6 +380,11 @@ const Customer = React.forwardRef((props, ref) => {
           <Row className="align-items-center mb-4">
             <Col xl={12} sm={12} xs={12}>
               <div className="cl-toolbar">
+                {categoryRefreshResult ? (
+                  <div className="alert alert-info py-2 mb-2" style={{ fontSize: 13 }}>
+                    {categoryRefreshResult}
+                  </div>
+                ) : null}
                 <div className="cl-toolbar-top">
                   <div className="cl-title">
                     <h3 className="mb-0">Customer List</h3>
@@ -373,6 +400,24 @@ const Customer = React.forwardRef((props, ref) => {
                         variant="outline-light"
                       >
                         <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
+                      </Button>
+                    ) : null}
+                    {moduleAccess?.canUpdate ? (
+                      <Button
+                        onClick={handleRefreshMechanicCategories}
+                        disabled={categoryRefreshing}
+                        className="cl-btn-outline"
+                        variant="outline-light"
+                        title="Recalculate Platinum / Diamond / Gold / Silver / Bronze of every mechanic"
+                      >
+                        {categoryRefreshing ? (
+                          <>
+                            <Spinner as="span" animation="border" size="sm" className="me-2" />
+                            Refreshing...
+                          </>
+                        ) : (
+                          "Refresh Mechanic Category"
+                        )}
                       </Button>
                     ) : null}
                     {moduleAccess?.canCreate ? (

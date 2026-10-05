@@ -47,6 +47,9 @@ export const backendUsersDropDownList = (data) =>
 // Get all Customers
 export const backendGetAllCustomers = (data) =>
   post(url.GET_ALL_CUSTOMER, data);
+// Recompute every mechanic's category (Platinum .. Bronze) now
+export const backendRefreshMechanicCategories = () =>
+  post(url.MECHANIC_CATEGORY_REFRESH, {});
 // Add New Customer
 export const backendPostAddNewCustomer = (data) =>
   submitFormData(url.MODULE_CUSTOMER, data, "POST");

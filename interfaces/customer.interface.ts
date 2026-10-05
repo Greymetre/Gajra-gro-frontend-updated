@@ -51,6 +51,27 @@ export interface CreateCustomerInterface {
     readonly active?: string;
   }
 
+  export interface MechanicLoyaltyCategory {
+    category: string | null;
+    levelCode?: string;
+    points?: number;
+    scans?: number;
+    activeMonths?: number;
+    activeQuarters?: number;
+    period?: string;
+    endMonth?: string;
+    updatedAt?: string;
+  }
+
+  export interface MechanicCategoryChange {
+    from: string | null;
+    to: string | null;
+    levelCode?: string | null;
+    period?: string;
+    endMonth?: string;
+    changedAt: string;
+  }
+
   export interface CustomerProfileViewInterface {
     _id?: any;
     refno?: any;
@@ -61,6 +82,14 @@ export interface CreateCustomerInterface {
     email?: string;
     customerType? : string;
     grade? : string;
+    // customer list: mechanic loyalty category (Platinum .. Bronze), "" = not classified
+    mechanicCategory?: string;
+    mechanicLevelCode?: string;
+    mechanicCategoryPoints?: any;
+    mechanicCategoryPeriod?: string;
+    // customer detail: the same, with the totals behind it and every change of category
+    loyaltyCategory?: MechanicLoyaltyCategory | null;
+    loyaltyCategoryHistory?: Array<MechanicCategoryChange>;
     avatar? :any;
     shopimage?: any;
     active ? : boolean;
@@ -162,6 +191,7 @@ export interface CustomerFilterInterface {
   userid?:any;
   condition?: string[];
   customerType:string[];
+  loyaltyCategory?: string[];
   // status?:any;
   // Pending?:any;
   // Approved?:any;
@@ -182,7 +212,8 @@ export const initialFilterCustomer = {
   condition:[],
   
   userid: '',
-  customerType:[]
+  customerType:[],
+  loyaltyCategory: [],
   // Pending:'',
   // Approved:'',
   // Rejected:'',

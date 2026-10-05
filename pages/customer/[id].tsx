@@ -56,6 +56,7 @@ import CustomerBank from "../../components/Customer/CustomerBank";
 import CustomerTransactionList from "../../components/Customer/CustomerTransactionList";
 import CustomerRedemptionList from "../../components/Customer/CustomerRedemption";
 import CustomerCallSummary from "../../components/Customer/CustomerCallSummary";
+import MechanicCategoryBadge from "../../components/Customer/MechanicCategoryBadge";
 import SelectUserList from "../../components/InputFields/SelectUserList";
 import { Formik, FormikHelpers, useFormik, useFormikContext } from "formik";
 import * as yup from "yup";
@@ -288,6 +289,12 @@ const CustomerDetail = () => {
                     {customerInfo.customerType}
                   </span>
                 ) : null}
+                {customerInfo.customerType === "Mechanic" ? (
+                  <MechanicCategoryBadge
+                    category={customerInfo.loyaltyCategory?.category}
+                    title={customerInfo.loyaltyCategory?.period}
+                  />
+                ) : null}
                 <span
                   className={`cd-badge ${
                     customerInfo.active ? "cd-badge-success" : "cd-badge-muted"
@@ -453,6 +460,70 @@ const CustomerDetail = () => {
                       </div>
                     </div>
                   </div>
+
+                  {customerInfo.customerType === "Mechanic" ? (
+                    <div className="cd-section">
+                      <h6 className="cd-section-title">Mechanic Category</h6>
+                      <div className="cd-grid">
+                        <div className="cd-field">
+                          <label>Category</label>
+                          <span>
+                            <MechanicCategoryBadge category={customerInfo.loyaltyCategory?.category} />
+                          </span>
+                        </div>
+                        <div className="cd-field">
+                          <label>Period</label>
+                          <span>{customerInfo.loyaltyCategory?.period || "-"}</span>
+                        </div>
+                        {customerInfo.loyaltyCategory?.category ? (
+                          <>
+                            <div className="cd-field">
+                              <label>Level</label>
+                              <span>{customerInfo.loyaltyCategory.levelCode}</span>
+                            </div>
+                            <div className="cd-field">
+                              <label>Points (12 months)</label>
+                              <span>{Number(customerInfo.loyaltyCategory.points || 0).toLocaleString("en-IN")}</span>
+                            </div>
+                            <div className="cd-field">
+                              <label>Coupon Scans</label>
+                              <span>{customerInfo.loyaltyCategory.scans ?? 0}</span>
+                            </div>
+                            <div className="cd-field">
+                              <label>Months Scanned</label>
+                              <span>{customerInfo.loyaltyCategory.activeMonths ?? 0} of 12</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="cd-field">
+                            <label>Reason</label>
+                            <span>{customerInfo.loyaltyCategory ? "No coupon scan in the last 12 months" : "Not calculated yet"}</span>
+                          </div>
+                        )}
+                        <div className="cd-field">
+                          <label>Updated</label>
+                          <span>{formatDateTime(customerInfo.loyaltyCategory?.updatedAt)}</span>
+                        </div>
+                      </div>
+                      {customerInfo.loyaltyCategoryHistory?.length ? (
+                        <div className="mt-3">
+                          <label className="d-block mb-2" style={{ fontSize: 12, color: "#7a7f88" }}>
+                            Category Changes
+                          </label>
+                          {[...customerInfo.loyaltyCategoryHistory].reverse().map((change, index) => (
+                            <div key={index} className="d-flex align-items-center flex-wrap gap-2 mb-2" style={{ fontSize: 13 }}>
+                              <MechanicCategoryBadge category={change.from} />
+                              <span>&rarr;</span>
+                              <MechanicCategoryBadge category={change.to} />
+                              <span style={{ color: "#7a7f88" }}>
+                                {change.period} · {formatDateTime(change.changedAt)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
 
                   <div className="cd-section">
                     <h6 className="cd-section-title">Location</h6>

@@ -63,6 +63,9 @@ import {
 import { handleExportTemplate } from "../../utils/utility";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
+import MechanicCategoryBadge, {
+  MECHANIC_CATEGORIES,
+} from "../../components/Customer/MechanicCategoryBadge";
 
 function CustomToggle(props: any) {
   const { eventKey } = props;
@@ -336,6 +339,12 @@ const Customer = React.forwardRef((props, ref) => {
     { value: 'Retailer', label: 'Retailer' },
 
   ]
+
+  // mechanic loyalty category filter; "None" = mechanics without a scan in the period
+  const mechanicCategoryOptions = [
+    ...MECHANIC_CATEGORIES.map((c) => ({ value: c, label: c })),
+    { value: "None", label: "Not classified" },
+  ];
 
   return (
     <Layout>
@@ -763,6 +772,29 @@ const Customer = React.forwardRef((props, ref) => {
   isSearchable={false}
 />
     </Form.Group>
+                          </Col>
+
+                          <Col md={3} className="border-end">
+                            <Form.Group className="mb-1">
+                              <Form.Label htmlFor="mechanicCategory">Mechanic Category</Form.Label>
+                              <Select
+                                inputId="mechanicCategory"
+                                isMulti
+                                isClearable
+                                placeholder="All categories"
+                                options={mechanicCategoryOptions}
+                                value={mechanicCategoryOptions.filter((option) =>
+                                  (filterData.loyaltyCategory || []).includes(option.value)
+                                )}
+                                onChange={(selected: any) => {
+                                  updateFilterData({
+                                    ...filterData,
+                                    loyaltyCategory: (selected || []).map((option: any) => option.value),
+                                  });
+                                }}
+                                isSearchable={false}
+                              />
+                            </Form.Group>
                           </Col>
                         </Row>
                       </Row>
@@ -1536,6 +1568,16 @@ const Customer = React.forwardRef((props, ref) => {
                               <span className="cl-badge">
                                 {item.customerType}
                               </span>
+                            ) : null}
+                            {item.customerType === "Mechanic" ? (
+                              <MechanicCategoryBadge
+                                category={item.mechanicCategory}
+                                title={
+                                  item.mechanicCategory
+                                    ? `${item.mechanicLevelCode} · ${Number(item.mechanicCategoryPoints || 0).toLocaleString("en-IN")} pts · ${item.mechanicCategoryPeriod}`
+                                    : "No coupon scan in the last 12 months"
+                                }
+                              />
                             ) : null}
                             <span className="cl-ref">
                               Ref No: {item.refno}

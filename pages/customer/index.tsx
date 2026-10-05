@@ -28,6 +28,7 @@ import {
   backendDeleteCustomer,
   backendGetAllCustomers,
   backendRefreshMechanicCategories,
+  backendGetMechanicCategorySummary,
 } from "../../helpers/backend_helper";
 import Link from "next/link";
 import editimg from "../../assets/images/auth/edit-3.svg";
@@ -64,6 +65,9 @@ import {
 import { handleExportTemplate } from "../../utils/utility";
 import { useRouter } from "next/navigation";
 import Select from "react-select";
+import MechanicCategoryTiles, {
+  MechanicCategorySummary,
+} from "../../components/Customer/MechanicCategoryTiles";
 import MechanicCategoryBadge, {
   MECHANIC_CATEGORIES,
 } from "../../components/Customer/MechanicCategoryBadge";
@@ -197,6 +201,28 @@ const Customer = React.forwardRef((props, ref) => {
     fetchCustomers();
   }, [paginationData, filterData]);
 
+  // Tiles above the list: mechanics per category; a click filters the list on that category
+  const [categorySummary, setCategorySummary] = useState<MechanicCategorySummary | null>(null);
+  const fetchCategorySummary = async () => {
+    try {
+      const res: any = await backendGetMechanicCategorySummary();
+      setCategorySummary(res?.data || null);
+    } catch (e) {
+      setCategorySummary(null);
+    }
+  };
+  useEffect(() => {
+    fetchCategorySummary();
+  }, []);
+  const handleCategoryTileSelect = (categories: string[]) => {
+    updateFilterData({
+      ...filterData,
+      loyaltyCategory: categories,
+      // only mechanics have a category
+      customerType: categories.length ? ["Mechanic"] : filterData.customerType,
+    });
+  };
+
   // Manual sync of mechanic categories (the backend also does it every night)
   const [categoryRefreshing, setCategoryRefreshing] = useState(false);
   const [categoryRefreshResult, setCategoryRefreshResult] = useState("");
@@ -212,6 +238,7 @@ const Customer = React.forwardRef((props, ref) => {
           MECHANIC_CATEGORIES.map((c) => `${c} ${counts[c] ?? 0}`).join(", ")
       );
       fetchCustomers();
+      fetchCategorySummary();
     } catch (e) {
       setCategoryRefreshResult("Category refresh failed, please try again.");
     }
@@ -493,6 +520,13 @@ const Customer = React.forwardRef((props, ref) => {
                   </div>
                 </div>
               </div>
+            </Col>
+            <Col xl={12} sm={12} xs={12} className="mt-4">
+              <MechanicCategoryTiles
+                summary={categorySummary}
+                selected={filterData.loyaltyCategory || []}
+                onSelect={handleCategoryTileSelect}
+              />
             </Col>
             <Col xl={12} sm={12} xs={12} className="text-end">
               <Accordion defaultActiveKey="0" className="mb-3">

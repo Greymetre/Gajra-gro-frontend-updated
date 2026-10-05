@@ -50,6 +50,9 @@ export const backendGetAllCustomers = (data) =>
 // Recompute every mechanic's category (Platinum .. Bronze) now
 export const backendRefreshMechanicCategories = () =>
   post(url.MECHANIC_CATEGORY_REFRESH, {});
+// Mechanics / points per category for the customer list tiles
+export const backendGetMechanicCategorySummary = () =>
+  post(url.MECHANIC_CATEGORY_SUMMARY, {});
 // Add New Customer
 export const backendPostAddNewCustomer = (data) =>
   submitFormData(url.MODULE_CUSTOMER, data, "POST");

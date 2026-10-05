@@ -21,6 +21,7 @@ export const GET_CUSTOMER_DROPDOWN_ = "/remark";
 
 export const GET_ALL_CUSTOMER = "/user/customers/all";
 export const MECHANIC_CATEGORY_REFRESH = "/user/customers/mechanicCategoryRefresh";
+export const MECHANIC_CATEGORY_SUMMARY = "/user/customers/mechanicCategorySummary";
 export const GET_CUSTOMER_BANKINFO = "/user/customers/getCustomerBankInfo";
 export const GET_CUSTOMER_BALANCE = "/user/redemptions/getCustomerBalance";
 export const CUSTOMER_BANK_ACCOUNT_VERIFIED =

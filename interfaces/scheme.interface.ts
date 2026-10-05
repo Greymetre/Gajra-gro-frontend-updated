@@ -24,7 +24,23 @@ export interface LoyaltySchemeInterface {
   image?: string;
   schemeDetail: LoyaltySchemeDetailInterface[];
   active?: boolean;
+  // basedOn "Percentage": total % of the normal schemes' points per mechanic category
+  categoryPercentages?: CategoryPercentageInterface[];
 }
+
+export interface CategoryPercentageInterface {
+  category: string;
+  percentage: any;
+}
+
+// Starting values of a new category scheme, lowest category first (the user can change them)
+export const defaultCategoryPercentages: CategoryPercentageInterface[] = [
+  { category: "Bronze", percentage: 100 },
+  { category: "Silver", percentage: 125 },
+  { category: "Gold", percentage: 175 },
+  { category: "Diamond", percentage: 200 },
+  { category: "Platinum", percentage: 250 },
+];
 
 export const initialLoyaltySchemeDetail = {
   detailName: "",
@@ -47,6 +63,7 @@ export const initialLoyaltyScheme = {
   cities: [],
   active:true,
   customers: [],
+  categoryPercentages: [] as CategoryPercentageInterface[],
   schemeDetail: [{
     detailName: "",
     categories: [],

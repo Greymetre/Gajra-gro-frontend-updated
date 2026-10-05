@@ -11,6 +11,7 @@ import {
   InputGroup,
   Modal,
   ListGroup,
+  Table,
 } from "react-bootstrap";
 import Router, { useRouter } from "next/router";
 import { useDispatch, useSelector } from "react-redux";
@@ -44,7 +45,9 @@ import {
   LoyaltySchemeDetailInterface,
   initialLoyaltyScheme,
   initialLoyaltySchemeDetail,
+  defaultCategoryPercentages,
 } from "../../interfaces/scheme.interface";
+import MechanicCategoryBadge from "../../components/Customer/MechanicCategoryBadge";
 import Select, { ActionMeta, OnChangeValue, StylesConfig } from "react-select";
 import {
   Formik,
@@ -98,6 +101,21 @@ const schema = yup.object().shape({
       points: yup.number().required(`require field`),
     })
   ),
+  // basedOn "Percentage": total % per mechanic category, 100 = only the normal scheme points
+  categoryPercentages: yup.array().when("basedOn", {
+    is: "Percentage",
+    then: (s: any) =>
+      s.of(
+        yup.object().shape({
+          category: yup.string().required(),
+          percentage: yup
+            .number()
+            .typeError("enter a number")
+            .min(100, "minimum 100%")
+            .required("required"),
+        })
+      ),
+  }),
 });
 const LoyaltySchemeSave = React.forwardRef((props, ref) => {
   const router = useRouter();
@@ -135,6 +153,7 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
           ...initialLoyaltyScheme,
           ...scheme,
           schemeDetail: details,
+          categoryPercentages: Array.isArray(scheme.categoryPercentages) ? scheme.categoryPercentages : [],
         });
       }
     });
@@ -176,6 +195,9 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = event.target;
+    if (name === "basedOn" && value === "Percentage" && !(formik.values.categoryPercentages || []).length) {
+      formik.setFieldValue("categoryPercentages", defaultCategoryPercentages);
+    }
     console.log("{ name, value, type }" , { name, value, type })
     formik.setFieldValue(name, type === "number" ? parseInt(value) : value);
 
@@ -300,8 +322,17 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
       delete iData["categoryInfo"];
       delete iData["subcategoryInfo"];
 
+      // Percentage: the category table gives the points, so the product rows carry none
+      const categoryMode = iData.basedOn === "Percentage";
+      iData["categoryPercentages"] = categoryMode
+        ? (iData.categoryPercentages || []).map((row: any) => ({
+            category: row.category,
+            percentage: Number(row.percentage),
+          }))
+        : [];
       var schemeDetail = await iData.schemeDetail.map((rows: any) => {
         delete rows["_id"];
+        if (categoryMode) rows.points = 0;
         return rows;
       });
       delete iData["schemeDetail"];
@@ -326,6 +357,9 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
     validationSchema: schema,
     onSubmit: handleFormSubmit,
   });
+
+  // basedOn "Percentage": points come from the mechanic category table, not from each product row
+  const isCategoryMode = formik.values.basedOn === "Percentage";
 
   const onRemoveClick = (index:any) => {
     const updatedDetails = formik.values.schemeDetail.filter((_, i) => i !== index);
@@ -626,6 +660,71 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                                             </Form.Group> */}
                     </Col>
                   ) : null}
+                  {isCategoryMode ? (
+                    <Col xs={12} className="mb-3">
+                      <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 16, background: "#fafafa" }}>
+                        <h6 className="mb-1">Mechanic Category Points</h6>
+                        <p className="mb-3" style={{ fontSize: 13, color: "#6b7280" }}>
+                          Total points a mechanic of each category gets on 1 coupon scan, as a % of the normal
+                          scheme points. 100% always comes from the normal scheme that is running; the rest comes
+                          from this scheme. Example: Platinum 250% = 100% normal scheme + 150% this scheme.
+                        </p>
+                        <Table responsive bordered size="sm" className="mb-0 bg-white" style={{ fontSize: 14 }}>
+                          <thead>
+                            <tr>
+                              <th>Category</th>
+                              <th style={{ width: 170 }}>Total Points %</th>
+                              <th>From Normal Scheme</th>
+                              <th>From This Scheme</th>
+                              <th>Example (normal scheme gives 100 pts)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(formik.values.categoryPercentages || []).map((row: any, index: number) => {
+                              const total = Number(row.percentage);
+                              const extra = isNaN(total) ? 0 : Math.max(0, total - 100);
+                              const error: any = (formik.errors.categoryPercentages as any)?.[index]?.percentage;
+                              return (
+                                <tr key={row.category}>
+                                  <td className="align-middle">
+                                    <MechanicCategoryBadge category={row.category} />
+                                  </td>
+                                  <td>
+                                    <InputGroup size="sm">
+                                      <Form.Control
+                                        name={`categoryPercentages.${index}.percentage`}
+                                        value={row.percentage}
+                                        inputMode="decimal"
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                          if (/^\d*\.?\d*$/.test(e.target.value)) {
+                                            formik.setFieldValue(`categoryPercentages.${index}.percentage`, e.target.value);
+                                          }
+                                        }}
+                                        isInvalid={!!error}
+                                      />
+                                      <InputGroup.Text>%</InputGroup.Text>
+                                    </InputGroup>
+                                    {error ? <div className="text-danger" style={{ fontSize: 12 }}>{error}</div> : null}
+                                  </td>
+                                  <td className="align-middle">100%</td>
+                                  <td className="align-middle" style={{ fontWeight: 600, color: extra > 0 ? "#16a34a" : "#6b7280" }}>
+                                    {extra > 0 ? `+${extra}%` : "No extra"}
+                                  </td>
+                                  <td className="align-middle" style={{ color: "#6b7280" }}>
+                                    100 + {Math.round(extra)} = <b style={{ color: "#111827" }}>{100 + Math.round(extra)} pts</b>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </Table>
+                        <p className="mt-2 mb-0" style={{ fontSize: 12, color: "#6b7280" }}>
+                          Applies only to the products added in LoyaltyScheme Details below. Mechanics without a
+                          category (no scan in the last 12 months) get only the normal scheme points.
+                        </p>
+                      </div>
+                    </Col>
+                  ) : null}
                   {settingData.states_based === true ? (
                     <Col md={4} sm={6} xs={12}>
                       <Form.Group className="mb-1">
@@ -897,9 +996,10 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                                 </Col>
                                 <Col md={2} sm={2} xs={2}>
                                   <Form.Label htmlFor="endedAt">
-                                    Percentage
+                                    {isCategoryMode ? "\u00a0" : "Percentage"}
                                   </Form.Label>
                                   <InputGroup className="mb-3">
+                                    {isCategoryMode ? null : (
                                     <Form.Control
                                       className="mb-1 gdfgdgdgdgdgdgdg"
                                       name={`schemeDetail.${index}.points`}
@@ -920,6 +1020,7 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
                                       autoComplete="off"
                                       placeholder="Enter points"
                                     />
+                                    )}
                                     <InputGroup.Text
                                       onClick={() =>  onRemoveClick(index)}
                                       className="bg-danger text-white "

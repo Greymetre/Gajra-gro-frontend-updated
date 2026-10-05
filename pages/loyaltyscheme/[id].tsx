@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Card, Col, Button, Row, Image, Form } from 'react-bootstrap'
+import { Card, Col, Button, Row, Image, Form, Table } from 'react-bootstrap'
 import { useSelector } from 'react-redux'
 import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
 import Layout from '../../components/Layout'
@@ -9,6 +9,7 @@ import { IMAGE_URL, CUSTOMER_DEMO_IMAGE, EDIT_DEMO_IMAGE, EDIT_WHITE_DEMO_IMAGE,
 import { useRouter } from 'next/router'
 import { LoyaltySchemeInterface, initialLoyaltyScheme } from '../../interfaces/scheme.interface'
 import * as XLSX from 'xlsx';
+import MechanicCategoryBadge from '../../components/Customer/MechanicCategoryBadge'
 import { CategoryViewInterface, ProductLoyaltyViewInterface, SubCategoryViewInterface } from '../../interfaces/category.interface'
 
 const LoyaltySchemeDetail = () => {
@@ -238,6 +239,36 @@ const LoyaltySchemeDetail = () => {
                     </div>
                   </Col>
                 </Row>
+                {schemeInfo.basedOn === 'Percentage' && Array.isArray(schemeInfo.categoryPercentages) && schemeInfo.categoryPercentages.length ? (
+                  <Row className='align-items-start card-body'>
+                    <Col xl={8} md={10} xs={12}>
+                      <p className="mb-2 f-12">Mechanic Category Points (per coupon scan)</p>
+                      <Table responsive bordered size="sm" className="mb-0" style={{ fontSize: 14 }}>
+                        <thead>
+                          <tr>
+                            <th>Category</th>
+                            <th>Total</th>
+                            <th>From Normal Scheme</th>
+                            <th>From This Scheme</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {schemeInfo.categoryPercentages.map((row) => {
+                            const extra = Math.max(0, Number(row.percentage) - 100);
+                            return (
+                              <tr key={row.category}>
+                                <td><MechanicCategoryBadge category={row.category} /></td>
+                                <td><b>{row.percentage}%</b></td>
+                                <td>100%</td>
+                                <td style={{ fontWeight: 600, color: extra > 0 ? '#16a34a' : '#6b7280' }}>{extra > 0 ? `+${extra}%` : 'No extra'}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </Table>
+                    </Col>
+                  </Row>
+                ) : null}
                 <Row className='align-items-start card-body'>
                   <Col xl={3} sm={4} xs={6}>
                     <div className="mb-2">
@@ -245,8 +276,9 @@ const LoyaltySchemeDetail = () => {
                       {Array.isArray(schemeInfo.schemeDetail) && schemeInfo.schemeDetail.map((item, index) => {
                         return (
                           <span className="text-muted">DetailName:{item.detailName}
-                            &nbsp;&nbsp;
-                            Points:{item.points}
+                            {schemeInfo.basedOn === 'Percentage' && schemeInfo.categoryPercentages?.length ? null : (
+                              <>&nbsp;&nbsp;Points:{item.points}</>
+                            )}
                           </span>
                         )
                       }

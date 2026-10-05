@@ -366,11 +366,12 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
     formik.setFieldValue("schemeDetail", updatedDetails);
   };
 
+  // Percentage (mechanic category) schemes take only GG Numbers: the points come from the category table
   const exportImportTemplate = () => {
     const worksheet = XLSX.utils.json_to_sheet([
-      { "GG Number": "", "Percentage/Point": "" },
+      isCategoryMode ? { "GG Number": "" } : { "GG Number": "", "Percentage/Point": "" },
     ]);
-    worksheet["!cols"] = [{ wch: 24 }, { wch: 22 }];
+    worksheet["!cols"] = isCategoryMode ? [{ wch: 24 }] : [{ wch: 24 }, { wch: 22 }];
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
     XLSX.writeFile(workbook, "loyalty-scheme-product-template.xlsx");
@@ -389,14 +390,18 @@ const LoyaltySchemeSave = React.forwardRef((props, ref) => {
       const excelRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
       const rows = excelRows.map(row => ({
         productNo: String(row["GG Number"] ?? row["GG number"] ?? row["productNo"] ?? "").trim(),
-        points: String(row["Percentage/Point"] ?? row["Percentage"] ?? row["Point"] ?? row["points"] ?? "").trim(),
+        points: isCategoryMode
+          ? "0"
+          : String(row["Percentage/Point"] ?? row["Percentage"] ?? row["Point"] ?? row["points"] ?? "").trim(),
       }));
       const result: any = await backendResolveLoyaltySchemeImport({ rows });
       if (result.isError) {
         throw new Error(result.message || "Unable to import the Excel file");
       }
 
-      const importedDetails = result.data?.schemeDetail || [];
+      const importedDetails = (result.data?.schemeDetail || []).map((detail: any) =>
+        isCategoryMode ? { ...detail, detailName: "Mechanic Category Products" } : detail
+      );
       const importedProducts = result.data?.products || [];
       formik.setFieldValue("schemeDetail", importedDetails);
       setAllProducts((current: any[]) => {

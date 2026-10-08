@@ -15,6 +15,60 @@ type ScanStatus = { type: 'idle' | 'loading' | 'success' | 'error'; message: str
 const MIN_LENS = 60;
 const MAX_LENS = 320;
 const LENS_SCAN_INTERVAL = 200;
+const MAX_SNAPSHOT_SIDE = 4000;
+
+type ViewerState = { width: number; height: number; imgLeft: number; imgTop: number; imgWidth: number; imgHeight: number; rotation: number; flip: boolean };
+
+// Reads the zoom/pan/rotate state of the image viewer so the scanner can open on the same view.
+const readViewerState = (viewer: HTMLDivElement | null): ViewerState | null => {
+  // The viewer's first element is the clipping box that frames the visible part of the image.
+  const frame = viewer?.firstElementChild;
+  const img = frame?.querySelector('img');
+  if (!frame || !img) return null;
+  const box = frame.getBoundingClientRect();
+  const rect = img.getBoundingClientRect();
+  if (!box.width || !box.height || !rect.width || !rect.height) return null;
+  const transform = img.style.transform || '';
+  const rotation = Number(transform.match(/rotate\((-?[\d.]+)deg\)/)?.[1] || 0);
+  const flip = /scaleX\(-1\)/.test(transform);
+  return {
+    width: box.width,
+    height: box.height,
+    imgLeft: rect.left - box.left,
+    imgTop: rect.top - box.top,
+    imgWidth: rect.width,
+    imgHeight: rect.height,
+    rotation,
+    flip,
+  };
+};
+
+// Renders only the part of the image that is visible in the viewer, at (up to) the original resolution.
+const renderViewerSnapshot = (bitmap: ImageBitmap, view: ViewerState): HTMLCanvasElement => {
+  const sideways = Math.round(view.rotation / 90) % 2 !== 0;
+  const drawWidth = sideways ? view.imgHeight : view.imgWidth;
+  const drawHeight = sideways ? view.imgWidth : view.imgHeight;
+  const nativeScale = Math.max(1, bitmap.width / drawWidth);
+  const scale = Math.min(nativeScale, MAX_SNAPSHOT_SIDE / Math.max(view.width, view.height));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(view.width * scale);
+  canvas.height = Math.round(view.height * scale);
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.scale(scale, scale);
+  ctx.translate(view.imgLeft + view.imgWidth / 2, view.imgTop + view.imgHeight / 2);
+  ctx.rotate((view.rotation * Math.PI) / 180);
+  ctx.scale(view.flip ? -1 : 1, 1);
+  ctx.drawImage(bitmap, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+  return canvas;
+};
+
+const canvasToBlob = (canvas: HTMLCanvasElement) =>
+  new Promise<Blob>((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('Could not render image'))), 'image/png'));
 
 const DamageQrScanner: React.FC<DamageQrScannerProps> = ({ invalidCouponid, images, onDetected, children }) => {
   const [status, setStatus] = useState<ScanStatus>({ type: 'idle', message: '' });
@@ -22,11 +76,13 @@ const DamageQrScanner: React.FC<DamageQrScannerProps> = ({ invalidCouponid, imag
   const [imageIndex, setImageIndex] = useState(0);
   const [imageUrl, setImageUrl] = useState('');
   const [lens, setLens] = useState({ x: 0, y: 0, size: 140, visible: false });
+  const [viewSize, setViewSize] = useState<{ width: number; height: number } | null>(null);
 
   const blobCache = useRef<Map<number, Blob>>(new Map());
   const sourceCanvas = useRef<HTMLCanvasElement | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const lensAreaRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<HTMLDivElement | null>(null);
   const lensRef = useRef(lens);
   const scanBusy = useRef(false);
   const scanPending = useRef(false);
@@ -64,19 +120,27 @@ const DamageQrScanner: React.FC<DamageQrScannerProps> = ({ invalidCouponid, imag
     error?.response?.data?.message || error?.message || 'Could not load image';
 
   const openLens = async (index: number) => {
+    // The viewer shows the first image; keep its zoom/pan when opening the scanner from it.
+    const view = !lensMode && index === 0 ? readViewerState(viewerRef.current) : null;
     setStatus({ type: 'loading', message: 'Loading image...' });
     try {
       const blob = await loadImageBlob(index);
       const bitmap = await createImageBitmap(blob);
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+      let canvas: HTMLCanvasElement;
+      if (view) {
+        canvas = renderViewerSnapshot(bitmap, view);
+      } else {
+        canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        canvas.getContext('2d')!.drawImage(bitmap, 0, 0);
+      }
       bitmap.close();
       sourceCanvas.current = canvas;
       detected.current = false;
       setImageIndex(index);
-      setImageUrl(URL.createObjectURL(blob));
+      setViewSize(view ? { width: view.width, height: view.height } : null);
+      setImageUrl(URL.createObjectURL(view ? await canvasToBlob(canvas) : blob));
       setLensMode(true);
       setStatus({ type: 'idle', message: 'Move the mouse over the QR code. Use the scroll wheel to resize the box.' });
     } catch (error) {
@@ -220,7 +284,7 @@ const DamageQrScanner: React.FC<DamageQrScannerProps> = ({ invalidCouponid, imag
         </div>
       )}
 
-      {lensMode && imageUrl ? (
+      {lensMode && imageUrl && (
         <div
           ref={lensAreaRef}
           onMouseMove={handleMouseMove}
@@ -233,7 +297,9 @@ const DamageQrScanner: React.FC<DamageQrScannerProps> = ({ invalidCouponid, imag
             src={imageUrl}
             alt="Damage entry"
             draggable={false}
-            style={{ display: 'block', maxWidth: '100%', maxHeight: 420, userSelect: 'none' }}
+            style={viewSize
+              ? { display: 'block', width: viewSize.width, height: viewSize.height, userSelect: 'none' }
+              : { display: 'block', maxWidth: '100%', maxHeight: 420, userSelect: 'none' }}
           />
           {lens.visible && (
             <div
@@ -250,9 +316,11 @@ const DamageQrScanner: React.FC<DamageQrScannerProps> = ({ invalidCouponid, imag
             />
           )}
         </div>
-      ) : (
-        children
       )}
+      {/* Kept mounted so the viewer's zoom survives opening and closing the scanner. */}
+      <div ref={viewerRef} style={{ display: lensMode && imageUrl ? 'none' : undefined }}>
+        {children}
+      </div>
     </div>
   );
 };

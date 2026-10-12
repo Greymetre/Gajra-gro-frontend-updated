@@ -112,6 +112,7 @@ interface ExcelRowDewas {
   MCoupons?: string;   // Optional property
   RPoints?: number;    // Optional property
   RCoupons?: string;   // Optional property
+  "Expire At"?: string;
 }
 interface ExcelRowKshipra {
 
@@ -366,6 +367,8 @@ const fetchCouponProfileDelhi = async () => {
                     newRow.RCoupons = info.retailerCoupons[i].coupon; // Retailer Coupon
                 } 
 
+                // Expire At: 3 years after the packed month/year (always the last column)
+                newRow["Expire At"] = `${month.toString().padStart(2, "0")}/${(year + 3).toString()}`;
 
                 // Push the new row to the allRows array
                 allDewasRows.push(newRow);

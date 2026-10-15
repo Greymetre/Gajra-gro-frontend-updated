@@ -13,7 +13,7 @@ import {
   Form,
   Spinner,
   InputGroup,
-  Accordion,
+  Offcanvas,
 } from "react-bootstrap";
 import {
   Download,
@@ -31,6 +31,7 @@ import {
   backendDeleteTransaction,
   backendImportCouponsToScan,
   backendImportTransactions,
+  backendGetTransactionPointTypes,
 } from "../../helpers/backend_helper";
 import {
   EDIT_DEMO_IMAGE,
@@ -56,7 +57,6 @@ import {
   initialResPaginate,
   initialTransPagination,
 } from "../../interfaces/pagination.interface";
-import { useAccordionButton } from "react-bootstrap/AccordionButton";
 
 import { handleExportTemplate } from "../../utils/utility";
 import { useRouter } from "next/navigation";
@@ -64,18 +64,6 @@ import {
   TraansactionFilterInterface,
   initialFiltertransaction,
 } from "../../interfaces/redemption.interface";
-function CustomToggle(props: any) {
-  const { eventKey } = props;
-  const decoratedOnClick = useAccordionButton(eventKey, () =>
-    console.log("totally custom!")
-  );
-
-  return (
-    <button type="button" className="btn  btn-dark" onClick={decoratedOnClick}>
-      Filter
-    </button>
-  );
-}
 interface KeyValue {
   [key: string]: any;
 }
@@ -104,6 +92,22 @@ const Transaction = React.forwardRef((props, ref) => {
     setFilterData(data);
     setPaginationData((prev) => ({ ...prev, currentPage: 1 }));
   };
+  // Filter drawer; point type options are loaded from the backend (scheme names and types in use)
+  const [showFilters, setShowFilters] = useState(false);
+  const [pointTypeOptions, setPointTypeOptions] = useState<Array<{ value: string; label: string }> | null>(null);
+  useEffect(() => {
+    backendGetTransactionPointTypes()
+      .then((res: any) => {
+        const types: string[] = Array.isArray(res?.data) ? res.data : [];
+        setPointTypeOptions([
+          { value: "all", label: "All credits (Cr)" },
+          ...types.map((type) => ({ value: type, label: type })),
+        ]);
+      })
+      .catch(() => setPointTypeOptions([{ value: "all", label: "All credits (Cr)" }]));
+  }, []);
+  const clearAllFilters = () =>
+    setPaginationData({ ...paginationData, currentPage: 1, startDate: "", endDate: "", customerType: [], pointType: [] });
   const [requestFileData, setRequestFileData] = useState<KeyValue[]>([]);
   const [requestTransactionFileData, setRequestTransactionFileData] = useState<
     KeyValue[]
@@ -407,321 +411,96 @@ const Transaction = React.forwardRef((props, ref) => {
                     </Button>
                   </Link>
                 )}
+                <Button variant="dark" className="ms-2" onClick={() => setShowFilters(true)}>
+                  <Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters
+                </Button>
               </Col>
             </Row>
-            <Row>
-              <Col xl={12} sm={12} xs={12} className="text-end">
-                <Accordion defaultActiveKey="0" className="mb-3">
-                  <CustomToggle eventKey="1"></CustomToggle>
-                  <Accordion.Collapse eventKey="1">
-                    <Card className="text-start prod-p-card bg-white">
-                      <Card.Body>
-                        <Row>
-                          <Col md={4} className="border-end">
-                            <Row>
-                              <Form.Label> Created Date</Form.Label>
-                              <Form.Group
-                                as={Row}
-                                className="mb-4"
-                                controlId="formHorizontalEmail"
-                              >
-                                <Col md={6}>
-                                  <Form.Label> From</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    name="startDate"
-                                    onChange={(e) => {
-                                      setPaginationData({
-                                        ...paginationData,
-                                        currentPage: 1,
-                                        startDate: e.target.value,
-                                      });
-                                    }}
-                                    value={paginationData.startDate}
-                                    required={true}
-                                    autoComplete="off"
-                                    placeholder="Start Date"
-                                  />
+            <Offcanvas show={showFilters} onHide={() => setShowFilters(false)} placement="end">
+              <Offcanvas.Header closeButton>
+                <Offcanvas.Title>
+                  Filters{" "}
+                  <span className="badge rounded-pill bg-light text-dark border ms-1">
+                    {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")}
+                  </span>
+                </Offcanvas.Title>
+              </Offcanvas.Header>
+              <Offcanvas.Body>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold">Created Date</Form.Label>
+                  <Row>
+                    <Col xs={6}>
+                      <Form.Label className="small text-muted">From</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="startDate"
+                        max={paginationData.endDate || undefined}
+                        onChange={(e) => setPaginationData({ ...paginationData, currentPage: 1, startDate: e.target.value })}
+                        value={paginationData.startDate}
+                        autoComplete="off"
+                      />
+                    </Col>
+                    <Col xs={6}>
+                      <Form.Label className="small text-muted">To</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="endDate"
+                        min={paginationData.startDate || undefined}
+                        onChange={(e) => setPaginationData({ ...paginationData, currentPage: 1, endDate: e.target.value })}
+                        value={paginationData.endDate}
+                        autoComplete="off"
+                      />
+                    </Col>
+                  </Row>
+                </Form.Group>
 
-                                  <Form.Label> To</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    name="endDate"
-                                    onChange={(e) => {
-                                      setPaginationData({
-                                        ...paginationData,
-                                        currentPage: 1,
-                                        endDate: e.target.value,
-                                      });
-                                    }}
-                                    value={paginationData.endDate}
-                                    required={true}
-                                    autoComplete="off"
-                                    placeholder="End Date"
-                                  />
-                                </Col>
-                                {/* <Col sm={6}>
-                                  <Form.Label> From</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    name="startDate"
-                                    onChange={(e) => {
-                                      updateFilterData({
-                                        ...filterData,
-                                        startDate: e.target.value,
-                                      });
-                                    }}
-                                    value={filterData.startDate}
-                                    required={true}
-                                    autoComplete="off"
-                                    placeholder="Start Date"
-                                  />
-                                </Col>
-                                <Col sm={6}>
-                                  <Form.Label> To</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    name="endDate"
-                                    onChange={(e) => {
-                                      updateFilterData({
-                                        ...filterData,
-                                        endDate: e.target.value,
-                                      });
-                                    }}
-                                    value={filterData.endDate}
-                                    required={true}
-                                    autoComplete="off"
-                                    placeholder="End Date"
-                                  />
-                                </Col> */}
-                              </Form.Group>
-                            </Row>
+                <Form.Group className="mb-4">
+                  <Form.Label htmlFor="transactionCustomerType" className="fw-semibold">Customer Type</Form.Label>
+                  <Select
+                    inputId="transactionCustomerType"
+                    options={customerTypeOptions}
+                    value={customerTypeOptions.find((option) => option.value === paginationData?.customerType?.[0]) || null}
+                    onChange={(e: any) =>
+                      setPaginationData({ ...paginationData, currentPage: 1, customerType: e ? [e.value] : [] })
+                    }
+                    isClearable
+                    isSearchable={false}
+                  />
+                </Form.Group>
 
-                            <Form.Group className="mb-1">
-      <Form.Label htmlFor="User">Customer Type</Form.Label>
-      <Select
-  options={customerTypeOptions}
-  // value={customerTypeOptions.find(option => option.value === filterData?.customerType[0])}
-  value={customerTypeOptions.find(option => option.value === paginationData?.customerType?.[0] ?? '')}
+                <Form.Group className="mb-4">
+                  <Form.Label htmlFor="transactionPointType" className="fw-semibold">Point Type / Scheme</Form.Label>
+                  <Select
+                    inputId="transactionPointType"
+                    isMulti
+                    isClearable
+                    isLoading={pointTypeOptions === null}
+                    placeholder="All transactions"
+                    options={pointTypeOptions || []}
+                    value={(pointTypeOptions || []).filter((option) =>
+                      (paginationData.pointType || []).includes(option.value)
+                    )}
+                    onChange={(selected: any) =>
+                      setPaginationData({
+                        ...paginationData,
+                        currentPage: 1,
+                        pointType: (selected || []).map((option: any) => option.value),
+                      })
+                    }
+                  />
+                  <Form.Text className="text-muted">Schemes come from Loyalty Scheme, plus every type already used</Form.Text>
+                </Form.Group>
 
-  onChange={(e :any) => {
-    setPaginationData({
-      ...paginationData,
-      currentPage: 1,
-      customerType: [e.value],
-    });
-  }}
-  isSearchable={false}
-/>
-    </Form.Group>
-                          </Col>
-                          <Col md={4} className="border-end">
-                            <h5>PointType</h5>
-                            <Col className="form-check m-2 ">
-                              <Form.Check
-                                inline
-                                className="form-check pt-1 pr-4"
-                                name="pointType"
-                                type="checkbox"
-                                value="MRP LABEL SCHEME"
-                                label="MRP LABEL SCHEME"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var pointType = paginationData.pointType
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.pointType)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    pointType.push(value);
-                                  } else {
-                                    pointType = pointType.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    pointType: Array.from(new Set(pointType)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.pointType)
-                                    ? paginationData.pointType.some(
-                                        (item) => item == "MRP LABEL SCHEME"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-
-                            <Col className="form-check m-2">
-                              <Form.Check
-                                inline
-                                className="form-check pt-4 pr-10"
-                                name="pointType"
-                                type="checkbox"
-                                value="Gajra Gro Loyalty Program"
-                                label="Gajra Gro Loyalty Program"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var pointType = paginationData.pointType
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.pointType)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    pointType.push(value);
-                                  } else {
-                                    pointType = pointType.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    pointType: Array.from(new Set(pointType)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.pointType)
-                                    ? paginationData.pointType.some(
-                                        (item) =>
-                                          item == "Gajra Gro Loyalty Program"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                            <Col className="form-check m-2">
-                              <Form.Check
-                                inline
-                                className="form-check pt-4 pr-10"
-                                name="pointType"
-                                type="checkbox"
-                                value="Coupon Scan"
-                                label="Coupon Scan"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var pointType = paginationData.pointType
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.pointType)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    pointType.push(value);
-                                  } else {
-                                    pointType = pointType.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    pointType: Array.from(new Set(pointType)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.pointType)
-                                    ? paginationData.pointType.some(
-                                        (item) => item == "Coupon Scan"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                            <Col className="form-check m-2 ">
-                              <Form.Check
-                                inline
-                                className="form-check  m-r-4"
-                                name="pointType"
-                                type="checkbox"
-                                value="Gajra Loyalty2"
-                                label="Gajra Loyalty2"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var pointType = paginationData.pointType
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.pointType)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    pointType.push(value);
-                                  } else {
-                                    pointType = pointType.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    pointType: Array.from(new Set(pointType)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.pointType)
-                                    ? paginationData.pointType.some(
-                                        (item) => item == "Gajra Loyalty2"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                          </Col>
-                          <Col>
-                            <Form.Check
-                              inline
-                              className="form-check  m-r-4"
-                              name="pointType"
-                              type="checkbox"
-                              value="all"
-                              label="All"
-                              onChange={(e) => {
-                                const { value, checked } = e.target;
-                                var pointType = paginationData.pointType
-                                  ? JSON.parse(
-                                      JSON.stringify(paginationData.pointType)
-                                    )
-                                  : [];
-                                if (checked) {
-                                  pointType.push(value);
-                                } else {
-                                  pointType = pointType.paginationData(
-                                    function (item: string) {
-                                      return item !== value;
-                                    }
-                                  );
-                                }
-                                setPaginationData({
-                                  ...paginationData,
-                                  currentPage: 1,
-                                  pointType: Array.from(new Set(pointType)),
-                                });
-                              }}
-                              defaultChecked={
-                                Array.isArray(paginationData.pointType)
-                                  ? paginationData.pointType.some(
-                                      (item) => item == "all"
-                                    )
-                                  : false
-                              }
-                            />
-                          </Col>{" "}
-                        </Row>
-                      </Card.Body>
-                    </Card>
-                  </Accordion.Collapse>
-                </Accordion>
-              </Col>
-            </Row>
+                <div className="d-flex gap-2 pt-2">
+                  <Button variant="outline-secondary" className="flex-fill" onClick={clearAllFilters}>
+                    Clear all
+                  </Button>
+                  <Button variant="dark" className="flex-fill" onClick={() => setShowFilters(false)}>
+                    Show {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")} transactions
+                  </Button>
+                </div>
+              </Offcanvas.Body>
+            </Offcanvas>
             {moduleAccess?.canImport && (
               <Row className="align-items-center mb-4">
                 <Col md={6}>

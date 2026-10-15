@@ -424,6 +424,9 @@ export const backendPostSurveyQuestionStatus = (data) =>
 // Get all Transactions
 export const backendGetAllTransactions = (data) =>
   post(url.GET_ALL_TRANSACTIONS, data);
+// Loyalty scheme names and every point type used on transactions
+export const backendGetTransactionPointTypes = () =>
+  post(url.GET_TRANSACTION_POINT_TYPES, {});
 // Add New Transaction
 export const backendPostAddNewTransaction = (data) =>
   post(url.MODULE_TRANSACTION, data);

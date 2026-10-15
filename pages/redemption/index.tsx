@@ -9,8 +9,8 @@ import {
   Table,
   Image,
   Form,
-  Accordion,
   InputGroup,
+  Offcanvas,
   Spinner,
 } from "react-bootstrap";
 import {
@@ -44,7 +44,6 @@ import {
   RedemptionFilterInterface,
   initialFilterRedemption,
 } from "../../interfaces/redemption.interface";
-import { useAccordionButton } from "react-bootstrap/AccordionButton";
 import {
   PaginationInterface,
   ResPaginateInterface,
@@ -57,18 +56,15 @@ import { convertExcelToJson } from "../../utils/utility";
 import * as XLSX from "xlsx";
 import Select from "react-select";
 
-function CustomToggle(props: any) {
-  const { eventKey } = props;
-  const decoratedOnClick = useAccordionButton(eventKey, () =>
-    console.log("totally custom!")
-  );
-
-  return (
-    <button type="button" className="btn  btn-dark" onClick={decoratedOnClick}>
-      Filter
-    </button>
-  );
-}
+// value is what the API stores, label is what the filter shows
+const REDEMPTION_STATUS_OPTIONS = [
+  { value: "Pending", label: "Pending" },
+  { value: "Approved", label: "Approved" },
+  { value: "Rejected", label: "Rejected" },
+  { value: "Success", label: "Success" },
+  { value: "Fail", label: "Fail" },
+  { value: "UNDER PROCESS", label: "In Process" },
+];
 //  interface KeyValue {
 
 //    key?: {
@@ -132,6 +128,14 @@ export default function Redemption() {
     initialFilterRedemption
   );
   // Changing a filter starts again from the first page; both updates render together.
+  const [showFilters, setShowFilters] = useState(false);
+  const toggleFilterValue = (field: "type" | "status", value: string, checked: boolean) => {
+    const current: string[] = Array.isArray(filterData[field]) ? (filterData[field] as string[]) : [];
+    updateFilterData({
+      ...filterData,
+      [field]: checked ? Array.from(new Set([...current, value])) : current.filter((item) => item !== value),
+    });
+  };
   const updateFilterData = (data: typeof filterData) => {
     setFilterData(data);
     setPaginationData((prev) => ({ ...prev, currentPage: 1 }));
@@ -402,376 +406,105 @@ export default function Redemption() {
                 </Link>
               ) : null}
 
-              {/* <Button className="pr-2" variant="dark"><Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters</Button> */}
+              <Button variant="dark" className="ms-2" onClick={() => setShowFilters(true)}>
+                <Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters
+              </Button>
             </Col>
-            <Col xl={12} sm={12} xs={12} className="text-end">
-              <Accordion defaultActiveKey="0" className="mb-3">
-                <CustomToggle eventKey="1"></CustomToggle>
-                <Accordion.Collapse eventKey="1">
-                  <Card className="text-start prod-p-card bg-white">
-                    <Card.Body>
-                      <Row>
-                        <Col md={4} className="border-end">
-                          <Form.Group
-                            as={Row}
-                            className="mb-3"
-                            controlId="formHorizontalEmail"
-                          >
-                            <Form.Label column sm={4}>
-                              {" "}
-                              Start Date
-                            </Form.Label>
-                            <Col sm={8}>
-                              <Form.Control
-                                type="date"
-                                name="startDate"
-                                onChange={(e) => {
-                                  updateFilterData({
-                                    ...filterData,
-                                    startDate: e.target.value,
-                                  });
-                                }}
-                                value={filterData.startDate}
-                                required={true}
-                                autoComplete="off"
-                                placeholder="Start Date"
-                              />
-                              {/* <DatePicker selected={filterData.startDate} onChange={(date: any) => { updateFilterData({ ...filterData, startDate: new Date(date) }) }} /> */}
-                            </Col>
-                          </Form.Group>
-                          <Form.Group
-                            as={Row}
-                            className="mb-3"
-                            controlId="formHorizontalEmail"
-                          >
-                            <Form.Label column sm={4}>
-                              {" "}
-                              Enf Date
-                            </Form.Label>
-                            <Col sm={8}>
-                              <Form.Control
-                                type="date"
-                                name="endDate"
-                                onChange={(e) => {
-                                  updateFilterData({
-                                    ...filterData,
-                                    endDate: e.target.value,
-                                  });
-                                }}
-                                value={filterData.endDate}
-                                required={true}
-                                autoComplete="off"
-                                placeholder="End Date"
-                              />
-                              {/* <DatePicker selected={filterData.endDate} onChange={(date: any) => { 
-                                updateFilterData({ ...filterData, endDate: new Date(date) }) }} /> */}
-                            </Col>
-                          </Form.Group>
+            <Offcanvas
+              show={showFilters}
+              onHide={() => setShowFilters(false)}
+              placement="end"
+            >
+              <Offcanvas.Header closeButton>
+                <Offcanvas.Title>
+                  Filters{" "}
+                  <span className="badge rounded-pill bg-light text-dark border ms-1">
+                    {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")}
+                  </span>
+                </Offcanvas.Title>
+              </Offcanvas.Header>
+              <Offcanvas.Body>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold">Date</Form.Label>
+                  <Row>
+                    <Col xs={6}>
+                      <Form.Label className="small text-muted">From</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="startDate"
+                        max={filterData.endDate || undefined}
+                        onChange={(e) => updateFilterData({ ...filterData, startDate: e.target.value })}
+                        value={filterData.startDate}
+                        autoComplete="off"
+                      />
+                    </Col>
+                    <Col xs={6}>
+                      <Form.Label className="small text-muted">To</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="endDate"
+                        min={filterData.startDate || undefined}
+                        onChange={(e) => updateFilterData({ ...filterData, endDate: e.target.value })}
+                        value={filterData.endDate}
+                        autoComplete="off"
+                      />
+                    </Col>
+                  </Row>
+                </Form.Group>
 
-                          <Form.Group className="mb-1">
-                            <Form.Label htmlFor="User">Customer Type</Form.Label>
-                            <Select
-                              options={customerTypeOptions}
-                              // value={customerTypeOptions.find(option => option.value === filterData?.customerType[0])}
-                              value={customerTypeOptions.find(option => option.value === filterData?.customerType?.[0] ?? '')}
+                <Form.Group className="mb-4">
+                  <Form.Label htmlFor="redemptionCustomerType" className="fw-semibold">Customer Type</Form.Label>
+                  <Select
+                    inputId="redemptionCustomerType"
+                    options={customerTypeOptions}
+                    value={customerTypeOptions.find((option) => option.value === filterData?.customerType?.[0]) || null}
+                    onChange={(e: any) => updateFilterData({ ...filterData, customerType: e ? [e.value] : [] })}
+                    isClearable
+                    isSearchable={false}
+                  />
+                </Form.Group>
 
-                              onChange={(e: any) => {
-                                updateFilterData({
-                                  ...filterData,
-                                  customerType: [e.value]  // Directly access value from the selected option
-                                });
-                              }}
-                              isSearchable={false}
-                            />
-                          </Form.Group>
-                        </Col>
-                        <Col md={4} className="border-end">
-                          <div className="p-3">
-                            <h5>Mode</h5>
-                            <Row className="mt-3 gx-0">
-                              {Array.isArray(redeemTypeData) &&
-                                redeemTypeData.map((item: any, index) => (
-                                  <Col
-                                    md={12}
-                                    className="form-check mb-2"
-                                    key={index}
-                                  >
-                                    <Form.Check
-                                      inline
-                                      className="form-check pt-2 pr-4"
-                                      type="checkbox"
-                                      value={item}
-                                      label={item}
-                                      onChange={(e) => {
-                                        const { value, checked } = e.target;
-                                        var types = filterData.type
-                                          ? JSON.parse(
-                                            JSON.stringify(filterData.type)
-                                          )
-                                          : [];
-                                        if (checked) {
-                                          types.push(value);
-                                        } else {
-                                          types = types.filter(function (
-                                            item: string
-                                          ) {
-                                            return item !== value;
-                                          });
-                                        }
-                                        updateFilterData({
-                                          ...filterData,
-                                          type: Array.from(new Set(types)),
-                                        });
-                                      }}
-                                      defaultChecked={
-                                        Array.isArray(filterData.type)
-                                          ? filterData.type.some(
-                                            (itemtype) => itemtype == item
-                                          )
-                                          : false
-                                      }
-                                    />
-                                  </Col>
-                                ))}
-                            </Row>
-                          </div>
-                        </Col>
-                        <Col md={4} className="border-end">
-                          <div className="p-3">
-                            <h5>Status</h5>
-                            <Row className="mt-3 gx-0">
-                              <Col md={12} className="form-check mb-2">
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  name="coupon_based"
-                                  type="checkbox"
-                                  value="Pending"
-                                  label="Pending"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    var status = filterData.status
-                                      ? JSON.parse(
-                                        JSON.stringify(filterData.status)
-                                      )
-                                      : [];
-                                    if (checked) {
-                                      status.push(value);
-                                    } else {
-                                      status = status.filter(function (
-                                        item: string
-                                      ) {
-                                        return item !== value;
-                                      });
-                                    }
-                                    updateFilterData({
-                                      ...filterData,
-                                      status: Array.from(new Set(status)),
-                                    });
-                                  }}
-                                  defaultChecked={
-                                    Array.isArray(filterData.status)
-                                      ? filterData.status.some(
-                                        (item) => item == "Pending"
-                                      )
-                                      : false
-                                  }
-                                />
-                              </Col>
-                              <Col md={12} className="form-check mb-2">
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  type="checkbox"
-                                  value="Approved"
-                                  label="Approved"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    var status = filterData.status
-                                      ? JSON.parse(
-                                        JSON.stringify(filterData.status)
-                                      )
-                                      : [];
-                                    if (checked) {
-                                      status.push(value);
-                                    } else {
-                                      status = status.filter(function (
-                                        item: string
-                                      ) {
-                                        return item !== value;
-                                      });
-                                    }
-                                    updateFilterData({
-                                      ...filterData,
-                                      status: Array.from(new Set(status)),
-                                    });
-                                  }}
-                                  defaultChecked={
-                                    Array.isArray(filterData.status)
-                                      ? filterData.status.some(
-                                        (item) => item == "Approved"
-                                      )
-                                      : false
-                                  }
-                                />
-                              </Col>
-                              <Col md={12} className="form-check mb-2">
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  type="checkbox"
-                                  value="Rejected"
-                                  label="Rejected"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    var status = filterData.status
-                                      ? JSON.parse(
-                                        JSON.stringify(filterData.status)
-                                      )
-                                      : [];
-                                    if (checked) {
-                                      status.push(value);
-                                    } else {
-                                      status = status.filter(function (
-                                        item: string
-                                      ) {
-                                        return item !== value;
-                                      });
-                                    }
-                                    updateFilterData({
-                                      ...filterData,
-                                      status: Array.from(new Set(status)),
-                                    });
-                                  }}
-                                  defaultChecked={
-                                    Array.isArray(filterData.status)
-                                      ? filterData.status.some(
-                                        (item) => item == "Rejected"
-                                      )
-                                      : false
-                                  }
-                                />
-                              </Col>
-                              <Col md={12} className="form-check mb-2">
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  type="checkbox"
-                                  value="Success"
-                                  label="Success"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    var status = filterData.status
-                                      ? JSON.parse(
-                                        JSON.stringify(filterData.status)
-                                      )
-                                      : [];
-                                    if (checked) {
-                                      status.push(value);
-                                    } else {
-                                      status = status.filter(function (
-                                        item: string
-                                      ) {
-                                        return item !== value;
-                                      });
-                                    }
-                                    updateFilterData({
-                                      ...filterData,
-                                      status: Array.from(new Set(status)),
-                                    });
-                                  }}
-                                  defaultChecked={
-                                    Array.isArray(filterData.status)
-                                      ? filterData.status.some(
-                                        (item) => item == "Success"
-                                      )
-                                      : false
-                                  }
-                                />
-                              </Col>
-                              <Col md={12} className="form-check mb-2">
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  type="checkbox"
-                                  value="Fail"
-                                  label="Fail"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    var status = filterData.status
-                                      ? JSON.parse(
-                                        JSON.stringify(filterData.status)
-                                      )
-                                      : [];
-                                    if (checked) {
-                                      status.push(value);
-                                    } else {
-                                      status = status.filter(function (
-                                        item: string
-                                      ) {
-                                        return item !== value;
-                                      });
-                                    }
-                                    updateFilterData({
-                                      ...filterData,
-                                      status: Array.from(new Set(status)),
-                                    });
-                                  }}
-                                  defaultChecked={
-                                    Array.isArray(filterData.status)
-                                      ? filterData.status.some(
-                                        (item) => item == "Fail"
-                                      )
-                                      : false
-                                  }
-                                />
-                              </Col>
-                              <Col md={12} className="form-check mb-2">
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  type="checkbox"
-                                  value="UNDER PROCESS"
-                                  label="In Process"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    var status = filterData.status
-                                      ? JSON.parse(
-                                        JSON.stringify(filterData.status)
-                                      )
-                                      : [];
-                                    if (checked) {
-                                      status.push(value);
-                                    } else {
-                                      status = status.filter(function (
-                                        item: string
-                                      ) {
-                                        return item !== value;
-                                      });
-                                    }
-                                    updateFilterData({
-                                      ...filterData,
-                                      status: Array.from(new Set(status)),
-                                    });
-                                  }}
-                                  defaultChecked={
-                                    Array.isArray(filterData.status)
-                                      ? filterData.status.some(
-                                        (item) => item == "Fail"
-                                      )
-                                      : false
-                                  }
-                                />
-                              </Col>
-                            </Row>
-                          </div>
-                        </Col>
-                      </Row>
-                    </Card.Body>
-                  </Card>
-                </Accordion.Collapse>
-              </Accordion>
-            </Col>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold d-block">Mode</Form.Label>
+                  {Array.isArray(redeemTypeData) &&
+                    redeemTypeData.map((item: any) => (
+                      <Form.Check
+                        key={item}
+                        id={`redemption-mode-${item}`}
+                        type="checkbox"
+                        className="mb-2"
+                        label={item}
+                        checked={Array.isArray(filterData.type) && filterData.type.includes(item)}
+                        onChange={(e) => toggleFilterValue("type", item, e.target.checked)}
+                      />
+                    ))}
+                </Form.Group>
+
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold d-block">Status</Form.Label>
+                  {REDEMPTION_STATUS_OPTIONS.map((option) => (
+                    <Form.Check
+                      key={option.value}
+                      id={`redemption-status-${option.value}`}
+                      type="checkbox"
+                      className="mb-2"
+                      label={option.label}
+                      checked={Array.isArray(filterData.status) && filterData.status.includes(option.value)}
+                      onChange={(e) => toggleFilterValue("status", option.value, e.target.checked)}
+                    />
+                  ))}
+                </Form.Group>
+
+                <div className="d-flex gap-2 pt-2">
+                  <Button variant="outline-secondary" className="flex-fill" onClick={() => updateFilterData(initialFilterRedemption)}>
+                    Clear all
+                  </Button>
+                  <Button variant="dark" className="flex-fill" onClick={() => setShowFilters(false)}>
+                    Show {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")} redemptions
+                  </Button>
+                </div>
+              </Offcanvas.Body>
+            </Offcanvas>
             {moduleAccess?.canImport ? (
               <Col md={6}>
                 <InputGroup className="mb-3">

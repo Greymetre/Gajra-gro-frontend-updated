@@ -117,6 +117,7 @@ export const MODULE_TRANSACTION = "/user/transactions";
 export const POST_TRANSACTION_STATUS = "/user/transactions/updateStatus";
 export const POST_SCANED_QRCODE = "/user/transactions/couponScans";
 export const GET_ALL_TRANSACTIONS = "/user/transactions/all";
+export const GET_TRANSACTION_POINT_TYPES = "/user/transactions/pointTypes";
 export const CUSTOMER_ALL_TRANSACTIONS = "/user/transactions/customer";
 export const POST_IMPORT_COUPONS_SCAN = "/user/transactions/importCouponScan";
 export const POST_IMPORT_TRANSACTIONS =

@@ -331,15 +331,39 @@ export default function Redemption() {
       <Row>
         <Col xl={12} md={12}>
           <Row className="align-items-center mb-4">
-            <Col md={3}>
-              <h3 className="card-body">
-                Redemption List({resPaginateData.totalDocs})
+            {/* title and actions on one line, list controls below; both wrap instead of overlapping */}
+            <Col xs={12} className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+              <h3 className="mb-0">
+                Redemption List ({(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")})
               </h3>
+              <div className="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                {moduleAccess?.canImport ? (
+                  <Button onClick={handleExportTemplate} variant="outline-light">
+                    <Download /> Template
+                  </Button>
+                ) : null}
+                {moduleAccess?.canExport ? (
+                  <Button onClick={handleOnExport} variant="outline-light">
+                    <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
+                  </Button>
+                ) : null}
+                {moduleAccess?.canCreate ? (
+                  <Link href={{ pathname: "/redemption/create" }}>
+                    <Button variant="dark">
+                      <Image src={IMAGE_URL + WHITE_PLUS_CIRCLE_IMAGE} /> Redemption
+                    </Button>
+                  </Link>
+                ) : null}
+                <Button variant="dark" onClick={() => setShowFilters(true)}>
+                  <Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters
+                </Button>
+              </div>
             </Col>
-            <Col md={2}>
-              <Form.Group className="d-flex align-items-center mb-0">
-                <Form.Label className="p-2">Show</Form.Label>
+            <Col xs={12} className="d-flex flex-wrap align-items-center gap-3">
+              <Form.Group className="d-flex align-items-center gap-2 mb-0">
+                <Form.Label className="mb-0">Show</Form.Label>
                 <Form.Select
+                  style={{ width: 120 }}
                   value={paginationData.recordPerPage}
                   onChange={(e: any) => {
                     setPaginationData({
@@ -358,57 +382,20 @@ export default function Redemption() {
                   <option value={10000}>10000</option>
                 </Form.Select>
               </Form.Group>
-            </Col>
-
-            <Col md={3} className="text-end">
-              <Form.Group className="form-group">
-                <Form.Label></Form.Label>
-                <Form.Control
-                  type="text"
-                  onChange={(e) => {
-                    setPaginationData({
-                      ...paginationData,
-                      currentPage: 1,
-                      search: e.target.value,
-                    });
-                  }}
-                  value={paginationData.search}
-                  autoComplete="off"
-                  placeholder="Search"
-                />
-              </Form.Group>
-            </Col>
-            <Col md={4} className="text-end">
-              {moduleAccess?.canImport ? (
-                <Button
-                  onClick={handleExportTemplate}
-                  className="p-2 pr-2"
-                  variant="outline-light"
-                >
-                  <Download /> Template
-                </Button>
-              ) : null}
-              {moduleAccess?.canExport ? (
-                <Button
-                  onClick={handleOnExport}
-                  className="p-2 pr-2"
-                  variant="outline-light"
-                >
-                  <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
-                </Button>
-              ) : null}
-              {moduleAccess?.canCreate ? (
-                <Link href={{ pathname: "/redemption/create" }}>
-                  <Button variant="dark">
-                    <Image src={IMAGE_URL + WHITE_PLUS_CIRCLE_IMAGE} />
-                    Redemption
-                  </Button>
-                </Link>
-              ) : null}
-
-              <Button variant="dark" className="ms-2" onClick={() => setShowFilters(true)}>
-                <Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters
-              </Button>
+              <Form.Control
+                type="text"
+                style={{ flex: "1 1 260px", maxWidth: 420 }}
+                onChange={(e) => {
+                  setPaginationData({
+                    ...paginationData,
+                    currentPage: 1,
+                    search: e.target.value,
+                  });
+                }}
+                value={paginationData.search}
+                autoComplete="off"
+                placeholder="Search"
+              />
             </Col>
             <Offcanvas
               show={showFilters}

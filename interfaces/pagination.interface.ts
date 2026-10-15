@@ -60,7 +60,7 @@ customerType:[]
 }
 export const initialCustomerPagination = {
   currentPage : 1,
-  recordPerPage : 100,
+  recordPerPage : 20,
   search : '',
 
   condition:[],

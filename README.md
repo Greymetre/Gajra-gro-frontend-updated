@@ -113,7 +113,7 @@ const API_URL = "https://apis.fieldkonnect.io/api"
 Image assets use this default URL:
 
 ```text
-https://s3.ap-south-1.amazonaws.com/gajragro2.fieldkonnect.io/
+https://gajragro.fieldkonnect.io/
 ```
 
 This value is defined in:

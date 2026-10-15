@@ -180,9 +180,11 @@ const Customer = React.forwardRef((props, ref) => {
   //   fetchCustomers();
   // }, [paginationData, filterData]);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = async (isStale: () => boolean = () => false) => {
     await backendGetAllCustomers({ ...filterData, ...paginationData }).then(
       (res) => {
+        // a newer filter/search was applied while this one was loading
+        if (isStale()) return;
         const { docs, paginate } = res.data;
         let totalData =
           Array.isArray(paginate) && paginate.length && paginate[0].totalDocs;
@@ -197,8 +199,14 @@ const Customer = React.forwardRef((props, ref) => {
     );
   };
   useEffect(() => {
+    let stale = false;
     setIsLoading(true);
-    fetchCustomers();
+    // wait until typing in the search box pauses instead of querying on every key
+    const timer = setTimeout(() => fetchCustomers(() => stale), 300);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
   }, [paginationData, filterData]);
 
   // Tiles above the list: mechanics per category; a click filters the list on that category
@@ -484,6 +492,8 @@ const Customer = React.forwardRef((props, ref) => {
                         });
                       }}
                     >
+                      <option value={20}>{20}</option>
+                      <option value={50}>{50}</option>
                       <option value={100}>{100}</option>
                       <option value={200}>{200}</option>
                       <option value={500}>{500}</option>

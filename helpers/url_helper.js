@@ -192,6 +192,7 @@ export const COUPON_PROFILE_EXPORT = "/user/coupons/couponProfileExport";
 export const COUPON_SEARCH = "/user/coupons/search";
 //Dashboard Data
 export const GET_DASHBOARD_DATA = "/user/dashboard";
+export const GET_DASHBOARD_OVERVIEW = "/user/dashboard/overview";
 
 //Reports
 export const GET_OTPLOG_REPORTS = "/user/customers/getOtpLog";

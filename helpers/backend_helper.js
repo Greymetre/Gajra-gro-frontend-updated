@@ -594,6 +594,9 @@ export const downloadCouponProfile = (data) =>
 // Get Dashboard Data
 // export const backendGetDashboards = (data) => get(url.GET_DASHBOARD_DATA?data);
 export const backendGetDashboards = (data) => get(`${url.GET_DASHBOARD_DATA}?customerType=${data}`);
+// Dashboard overview for one customer type; from / to are optional YYYY-MM-DD
+export const backendGetDashboardOverview = ({ customerType, from, to }) =>
+  get(url.GET_DASHBOARD_OVERVIEW, { params: { customerType, from: from || undefined, to: to || undefined } });
 //Reports
 export const backendOtpLogReport = (data) => post(url.GET_OTPLOG_REPORTS, data);
 

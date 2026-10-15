@@ -8,6 +8,7 @@ import {
   People,
   QrCode,
   Wallet2,
+  ImageAlt,
 } from "react-bootstrap-icons";
 import Link from "next/link";
 import Layout from "../../components/Layout";
@@ -29,6 +30,7 @@ interface TrendRow {
   redeemedPoints: number;
   redemptions: number;
   newCustomers: number;
+  damageEntries: number;
 }
 
 interface Overview {
@@ -40,8 +42,26 @@ interface Overview {
     newInPeriod: number;
     activeInPeriod: number;
   };
-  points: { earned: number; scanned: number; welcome: number; other: number; redeemed: number; balance: number };
+  points: {
+    earned: number;
+    scanned: number;
+    welcome: number;
+    welcomeCustomers: number;
+    welcomeExcluded: number;
+    other: number;
+    redeemed: number;
+    balance: number;
+  };
   coupons: { generated: number; scanned: number; scans: number };
+  damage: {
+    total: number;
+    Pending: number;
+    Approved: number;
+    Rejected: number;
+    Hold: number;
+    customers: number;
+    oldestPendingAt: string | null;
+  };
   redemptions: {
     byStatus: Array<{ status: string; count: number; points: number }>;
     byMethod: Array<{ method: string; count: number; points: number }>;
@@ -118,20 +138,16 @@ const css = `
 .gd-section > h6 svg { color: var(--accent); }
 .gd-section > h6 small { font-weight: 500; color: var(--muted); font-size: 12px; }
 .gd-grid { display: grid; gap: 14px; }
-.gd-g6 { grid-template-columns: repeat(6, minmax(0,1fr)); }
 .gd-g5 { grid-template-columns: repeat(5, minmax(0,1fr)); }
 .gd-g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
 .gd-g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
-@media (max-width: 1399px) { .gd-g6 { grid-template-columns: repeat(3, minmax(0,1fr)); } .gd-g5 { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+@media (max-width: 1399px) { .gd-g5 { grid-template-columns: repeat(3, minmax(0,1fr)); } }
 @media (max-width: 991px) { .gd-g3, .gd-g2 { grid-template-columns: 1fr; } }
-@media (max-width: 767px) { .gd-g6, .gd-g5 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 767px) { .gd-g5 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 .gd-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; min-width: 0; }
 .gd-kpi .label { font-size: 12.5px; font-weight: 600; color: var(--muted); }
 .gd-kpi .value { font-size: 26px; font-weight: 800; color: var(--ink); line-height: 1.2; margin-top: 6px; font-variant-numeric: tabular-nums; }
 .gd-kpi .sub { font-size: 12.5px; color: var(--muted); margin-top: 4px; }
-.gd-kpi.hero { background: var(--ink); border-color: var(--ink); }
-.gd-kpi.hero .label, .gd-kpi.hero .sub { color: #cbd5e1; }
-.gd-kpi.hero .value { color: #fff; }
 .gd-stage { position: relative; padding-left: 22px; }
 .gd-stage::before { content: ""; position: absolute; left: 0; top: 18px; bottom: 18px; width: 4px; border-radius: 0 4px 4px 0; background: #cbd5e1; }
 .gd-stage.warn::before { background: #d97706; } .gd-stage.info::before { background: #2563eb; } .gd-stage.good::before { background: #059669; } .gd-stage.bad::before { background: #dc2626; }
@@ -169,15 +185,116 @@ const css = `
 .gd-loading { opacity: .55; pointer-events: none; transition: opacity .15s; }
 .gd-skel { display: inline-block; width: 70%; height: 26px; border-radius: 6px; background: linear-gradient(90deg,#f1f2f6,#e7e9ee,#f1f2f6); background-size: 200% 100%; animation: gdsk 1.2s infinite; }
 @keyframes gdsk { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.gd-panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; box-shadow: 0 1px 2px rgba(15,23,42,.04); min-width: 0; }
+.gd-panel-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.gd-panel-head h5 { margin: 0; font-size: 16px; font-weight: 700; color: var(--ink); }
+.gd-panel-head span { font-size: 12.5px; color: var(--muted); }
+.gd-ico { width: 38px; height: 38px; border-radius: 11px; background: var(--accent-soft); color: var(--accent); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.gd-ico svg { width: 18px; height: 18px; }
+.gd-split { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+@media (max-width: 1199px) { .gd-split { grid-template-columns: 1fr; } }
+.gd-block { border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; min-width: 0; }
+.gd-block.tinted { background: #f8f9ff; border-color: #e0e4ff; }
+.gd-block-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
+.gd-block-head b { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+.gd-note { font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: #f1f2f6; color: var(--muted); }
+.gd-note.on { background: var(--accent-soft); color: var(--accent); }
+.gd-cust { display: grid; grid-template-columns: minmax(170px, 1fr) 3fr; gap: 20px; align-items: center; }
+@media (max-width: 767px) { .gd-cust { grid-template-columns: 1fr; } }
+.gd-big .lbl, .gd-stat .lbl, .gd-meter .lbl, .gd-redeem .lbl, .gd-funnel .lbl { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.gd-big .val { display: block; font-size: 38px; font-weight: 800; color: var(--ink); line-height: 1.15; margin: 4px 0 2px; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.gd-big .sub, .gd-stat .sub, .gd-meter .sub, .gd-redeem .sub { display: block; font-size: 12px; color: var(--muted); }
+.gd-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 18px; }
+.gd-meter .row { display: flex; align-items: baseline; gap: 8px; margin: 4px 0 8px; }
+.gd-meter .row b { font-size: 24px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.gd-meter .row em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--ink-2); background: #f1f2f6; padding: 1px 7px; border-radius: 999px; }
+.gd-meter .sub { margin-top: 6px; }
+.gd-stat .val { display: block; font-size: 24px; font-weight: 800; color: var(--ink); margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.gd-track { height: 8px; background: #eef0f4; border-radius: 4px; overflow: hidden; display: flex; }
+.gd-track.lg { height: 12px; border-radius: 6px; margin-top: 14px; }
+.gd-track > div { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
+.gd-track.bad > div { background: #dc2626; }
+.gd-g32 { grid-template-columns: 3fr 2fr; }
+@media (max-width: 1199px) { .gd-g32 { grid-template-columns: 1fr; } }
+.gd-points { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 22px; align-items: center; }
+@media (max-width: 767px) { .gd-points { grid-template-columns: 1fr; } }
+.gd-sublabel { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+.gd-stack { display: flex; gap: 2px; height: 14px; border-radius: 7px; overflow: hidden; background: #eef0f4; }
+.gd-stack > div { height: 100%; min-width: 3px; }
+.gd-legend { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 12px; }
+.gd-legend div { font-size: 12px; color: var(--muted); min-width: 0; }
+.gd-legend i, .gd-redeem i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.gd-legend b { display: block; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.gd-legend span { font-size: 11.5px; }
+.gd-divider { height: 1px; background: var(--line); margin: 20px 0 16px; }
+.gd-redeem { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.gd-redeem .val { display: block; font-size: 24px; font-weight: 800; color: var(--ink); margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.gd-funnel .step { margin-bottom: 16px; }
+.gd-funnel .step:last-child { margin-bottom: 0; }
+.gd-funnel .val { display: flex; align-items: baseline; gap: 8px; font-size: 26px; font-weight: 800; color: var(--ink); margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.gd-funnel .val em { font-style: normal; font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft); padding: 2px 8px; border-radius: 999px; }
+.gd-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.gd-stat .val.sm { font-size: 22px; }
+.gd-track.warn > div { background: #d97706; }
+.gd-track.good > div { background: #059669; }
+.gd-track.info > div { background: #2563eb; }
+.gd-link { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.gd-link:hover { text-decoration: underline; }
+.gd-damage { display: grid; grid-template-columns: minmax(200px, 1fr) 2fr 2fr; gap: 26px; align-items: start; }
+@media (max-width: 1399px) { .gd-damage { grid-template-columns: minmax(200px, 1fr) 2fr; } .gd-damage-trend { grid-column: 1 / -1; } }
+@media (max-width: 767px) { .gd-damage { grid-template-columns: 1fr; } }
+.gd-damage .gd-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gd-queue { margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: #fffbeb; border: 1px solid #fde68a; font-size: 12.5px; color: #92400e; }
+.gd-queue b { display: block; font-size: 13px; }
+.gd-queue b.ok { color: #065f46; }
+.gd-queue:has(b.ok) { background: #ecfdf5; border-color: #a7f3d0; }
+.gd-damage-trend .gd-bars { height: 120px; }
+.gd-info { margin-top: 12px; font-size: 12px; color: var(--ink-2); background: #f8f9fb; border: 1px dashed var(--line); border-radius: 10px; padding: 8px 10px; line-height: 1.5; }
 `;
 
-function Kpi({ label, value, sub, hero, loading }: { label: string; value: string; sub?: string; hero?: boolean; loading?: boolean }) {
+function Meter({ label, value, total, sub, tone, loading }: { label: string; value: number; total: number; sub: string; tone?: "bad" | "warn" | "good" | "info"; loading?: boolean }) {
   return (
-    <div className={`gd-card gd-kpi ${hero ? "hero" : ""}`}>
-      <div className="label">{label}</div>
-      <div className="value">{loading ? <span className="gd-skel" /> : value}</div>
-      {sub ? <div className="sub">{sub}</div> : null}
+    <div className="gd-meter">
+      <span className="lbl">{label}</span>
+      <div className="row">
+        <b>{loading ? <span className="gd-skel" /> : num(value)}</b>
+        {!loading ? <em>{pct(value, total)}</em> : null}
+      </div>
+      <div className={`gd-track ${tone || ""}`}>
+        <div style={{ width: `${Math.min(100, total ? (value / total) * 100 : 0)}%` }} />
+      </div>
+      <span className="sub">{sub}</span>
     </div>
+  );
+}
+
+// Part-of-whole bar with a legend that also carries every value, so colour is never the only cue
+function StackBar({ parts }: { parts: Array<{ label: string; value: number; color: string }> }) {
+  const total = parts.reduce((sum, part) => sum + Math.max(0, part.value), 0);
+  return (
+    <>
+      <div className="gd-stack" role="img" aria-label={parts.map((x) => `${x.label} ${num(x.value)}`).join(", ")}>
+        {parts.map((part) =>
+          part.value > 0 ? (
+            <div
+              key={part.label}
+              title={`${part.label}: ${num(part.value)} (${pct(part.value, total)})`}
+              style={{ width: `${(part.value / (total || 1)) * 100}%`, background: part.color }}
+            />
+          ) : null
+        )}
+      </div>
+      <div className="gd-legend">
+        {parts.map((part) => (
+          <div key={part.label}>
+            <i style={{ background: part.color }} />
+            {part.label}
+            <b>{num(part.value)}</b>
+            <span>{pct(part.value, total)}</span>
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -279,6 +396,11 @@ export default function Dashboard() {
   const c = data?.customers;
   const p = data?.points;
   const q = data?.coupons;
+  const dmg = data?.damage;
+  const decided = (dmg?.Approved || 0) + (dmg?.Rejected || 0);
+  const pendingDays = dmg?.oldestPendingAt
+    ? Math.max(0, Math.floor((Date.now() - new Date(dmg.oldestPendingAt).getTime()) / 86400000))
+    : null;
   const showSkeleton = loading && !data;
   const periodLabel = PERIODS.find((x) => x.key === period)?.label || "";
   const inPeriod = period === "all" ? "all time" : periodLabel.toLowerCase();
@@ -364,65 +486,214 @@ export default function Dashboard() {
 
         <div className={loading && data ? "gd-loading" : ""}>
           <div className="gd-section">
-            <h6>
-              <People /> {customerType}s
-            </h6>
-            <div className="gd-grid gd-g6">
-              <Kpi hero label={`Total ${customerType.toLowerCase()}s`} value={num(c?.total || 0)} sub="Registered, all time" loading={showSkeleton} />
-              <Kpi
-                label="Active (scanned)"
-                value={num(c?.activeInPeriod || 0)}
-                sub={`${pct(c?.activeInPeriod || 0, c?.total || 0)} of total · ${inPeriod}`}
-                loading={showSkeleton}
-              />
-              <Kpi label="New registrations" value={num(c?.newInPeriod || 0)} sub={inPeriod} loading={showSkeleton} />
-              <Kpi label="App users" value={num(c?.appUsers || 0)} sub={`${pct(c?.appUsers || 0, c?.total || 0)} have logged in`} loading={showSkeleton} />
-              <Kpi
-                label="Self registered"
-                value={num(c?.selfRegistered || 0)}
-                sub={`${num((c?.total || 0) - (c?.selfRegistered || 0))} added by team`}
-                loading={showSkeleton}
-              />
-              <Kpi label="Blocked" value={num(c?.blocked || 0)} sub="Marked inactive" loading={showSkeleton} />
+            <div className="gd-panel">
+              <div className="gd-panel-head">
+                <span className="gd-ico"><People /></span>
+                <div>
+                  <h5>{customerType}s</h5>
+                  <span>Registrations and app usage</span>
+                </div>
+              </div>
+              <div className="gd-split">
+                <div className="gd-block">
+                  <div className="gd-block-head">
+                    <b>All time</b>
+                    <span className="gd-note">Not affected by the period filter</span>
+                  </div>
+                  <div className="gd-cust">
+                    <div className="gd-big">
+                      <span className="lbl">Total {customerType.toLowerCase()}s</span>
+                      <span className="val">{showSkeleton ? <span className="gd-skel" /> : num(c?.total || 0)}</span>
+                      <span className="sub">Registered on the programme</span>
+                    </div>
+                    <div className="gd-metrics">
+                      <Meter
+                        label="App users"
+                        value={c?.appUsers || 0}
+                        total={c?.total || 0}
+                        sub="have logged in to the app"
+                        loading={showSkeleton}
+                      />
+                      <Meter
+                        label="Self registered"
+                        value={c?.selfRegistered || 0}
+                        total={c?.total || 0}
+                        sub={`${num((c?.total || 0) - (c?.selfRegistered || 0))} added by team`}
+                        loading={showSkeleton}
+                      />
+                      <Meter
+                        label="Blocked"
+                        value={c?.blocked || 0}
+                        total={c?.total || 0}
+                        sub="marked inactive"
+                        tone="bad"
+                        loading={showSkeleton}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="gd-block tinted">
+                  <div className="gd-block-head">
+                    <b>{periodLabel}</b>
+                    <span className="gd-note on">Changes with the period filter</span>
+                  </div>
+                  <div className="gd-metrics">
+                    <Meter
+                      label="Active (scanned at least once)"
+                      value={c?.activeInPeriod || 0}
+                      total={c?.total || 0}
+                      sub={`of all ${customerType.toLowerCase()}s`}
+                      loading={showSkeleton}
+                    />
+                    <div className="gd-stat">
+                      <span className="lbl">New registrations</span>
+                      <span className="val">{showSkeleton ? <span className="gd-skel" /> : num(c?.newInPeriod || 0)}</span>
+                      <span className="sub">{period === "all" ? "Since the programme started" : `Joined in ${inPeriod}`}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="gd-section">
-            <h6>
-              <Wallet2 /> Points <small>· {inPeriod}</small>
-            </h6>
-            <div className="gd-grid gd-g5">
-              <Kpi hero label="Points earned" value={num(p?.earned || 0)} sub="All credits" loading={showSkeleton} />
-              <Kpi label="From QR scans" value={num(p?.scanned || 0)} sub={pct(p?.scanned || 0, p?.earned || 0) + " of earned"} loading={showSkeleton} />
-              <Kpi
-                label="Welcome & other"
-                value={num((p?.welcome || 0) + (p?.other || 0))}
-                sub={`Welcome ${num(p?.welcome || 0)} · Other ${num(p?.other || 0)}`}
-                loading={showSkeleton}
-              />
-              <Kpi label="Points redeemed" value={num(p?.redeemed || 0)} sub="Excludes rejected / failed" loading={showSkeleton} />
-              <Kpi
-                label="Net outstanding"
-                value={num(p?.balance || 0)}
-                sub={period === "all" ? "Earned minus redeemed" : "Earned minus redeemed in period"}
-                loading={showSkeleton}
-              />
+            <div className="gd-grid gd-g32">
+              <div className="gd-panel">
+                <div className="gd-panel-head">
+                  <span className="gd-ico"><Wallet2 /></span>
+                  <div>
+                    <h5>Points</h5>
+                    <span>Earned and redeemed · {inPeriod}</span>
+                  </div>
+                </div>
+                <div className="gd-points">
+                  <div className="gd-big">
+                    <span className="lbl">Points earned</span>
+                    <span className="val">{showSkeleton ? <span className="gd-skel" /> : num(p?.earned || 0)}</span>
+                    <span className="sub">Credits to active {customerType.toLowerCase()} wallets</span>
+                  </div>
+                  <div>
+                    <div className="gd-sublabel">Where points came from</div>
+                    <StackBar
+                      parts={[
+                        { label: "QR scans", value: p?.scanned || 0, color: "#2a78d6" },
+                        { label: "Welcome (active only)", value: p?.welcome || 0, color: "#eb6834" },
+                        { label: "Other", value: p?.other || 0, color: "#1baf7a" },
+                      ]}
+                    />
+                    <div className="gd-info">
+                      Welcome points count only for {num(p?.welcomeCustomers || 0)} {customerType.toLowerCase()}s who scanned a QR code in{" "}
+                      {inPeriod}. {num(p?.welcomeExcluded || 0)} pts given to {customerType.toLowerCase()}s who did not scan are left out.
+                    </div>
+                  </div>
+                </div>
+                <div className="gd-divider" />
+                <div className="gd-sublabel">Earned vs redeemed</div>
+                <div className="gd-redeem">
+                  <div>
+                    <span className="lbl"><i style={{ background: "#2a78d6" }} />Points redeemed</span>
+                    <span className="val">{showSkeleton ? <span className="gd-skel" /> : num(p?.redeemed || 0)}</span>
+                    <span className="sub">{pct(p?.redeemed || 0, p?.earned || 0)} of earned · excludes rejected / failed</span>
+                  </div>
+                  <div>
+                    <span className="lbl"><i style={{ background: "#d7dbe3" }} />Net outstanding</span>
+                    <span className="val">{showSkeleton ? <span className="gd-skel" /> : num(p?.balance || 0)}</span>
+                    <span className="sub">Earned minus redeemed</span>
+                  </div>
+                </div>
+                <div className="gd-track lg" title={`${pct(p?.redeemed || 0, p?.earned || 0)} redeemed`}>
+                  <div style={{ width: `${Math.min(100, p?.earned ? ((p.redeemed || 0) / p.earned) * 100 : 0)}%`, background: "#2a78d6" }} />
+                </div>
+              </div>
+
+              <div className="gd-panel">
+                <div className="gd-panel-head">
+                  <span className="gd-ico"><QrCode /></span>
+                  <div>
+                    <h5>QR codes</h5>
+                    <span>Generated vs scanned · {inPeriod}</span>
+                  </div>
+                </div>
+                <div className="gd-funnel">
+                  <div className="step">
+                    <span className="lbl">Generated</span>
+                    <span className="val">{showSkeleton ? <span className="gd-skel" /> : num(q?.generated || 0)}</span>
+                    <div className="gd-track"><div style={{ width: q?.generated ? "100%" : "0%" }} /></div>
+                  </div>
+                  <div className="step">
+                    <span className="lbl">Unique codes scanned</span>
+                    <span className="val">
+                      {showSkeleton ? <span className="gd-skel" /> : num(q?.scanned || 0)}
+                      <em>{pct(q?.scanned || 0, q?.generated || 0)}</em>
+                    </span>
+                    <div className="gd-track">
+                      <div style={{ width: `${Math.min(100, q?.generated ? ((q.scanned || 0) / q.generated) * 100 : 0)}%` }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="gd-divider" />
+                <div className="gd-pair">
+                  <div className="gd-stat">
+                    <span className="lbl">Total scans</span>
+                    <span className="val sm">{showSkeleton ? <span className="gd-skel" /> : num(q?.scans || 0)}</span>
+                    <span className="sub">including repeat scans</span>
+                  </div>
+                  <div className="gd-stat">
+                    <span className="lbl">Scans per active {customerType.toLowerCase()}</span>
+                    <span className="val sm">{num(c?.activeInPeriod ? (q?.scans || 0) / c.activeInPeriod : 0)}</span>
+                    <span className="sub">average</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="gd-section">
-            <h6>
-              <QrCode /> QR codes
-            </h6>
-            <div className="gd-grid gd-g3">
-              <Kpi label="QR codes generated" value={num(q?.generated || 0)} sub={`For ${customerType.toLowerCase()}s · ${inPeriod}`} loading={showSkeleton} />
-              <Kpi
-                label="Unique QR codes scanned"
-                value={num(q?.scanned || 0)}
-                sub={q?.generated ? `${pct(q.scanned, q.generated)} of generated` : inPeriod}
-                loading={showSkeleton}
-              />
-              <Kpi label="Total scans" value={num(q?.scans || 0)} sub={`Avg ${num(c?.activeInPeriod ? (q?.scans || 0) / c.activeInPeriod : 0)} per active ${customerType.toLowerCase()}`} loading={showSkeleton} />
+            <div className="gd-panel">
+              <div className="gd-panel-head">
+                <span className="gd-ico"><ImageAlt /></span>
+                <div>
+                  <h5>Damage entries</h5>
+                  <span>QR codes sent with a photo for manual approval · {inPeriod}</span>
+                </div>
+                <Link href="/damageentries" className="gd-link">Open damage entries →</Link>
+              </div>
+              <div className="gd-damage">
+                <div className="gd-big">
+                  <span className="lbl">Entries submitted</span>
+                  <span className="val">{showSkeleton ? <span className="gd-skel" /> : num(dmg?.total || 0)}</span>
+                  <span className="sub">by {num(dmg?.customers || 0)} {customerType.toLowerCase()}s</span>
+                  <div className="gd-queue">
+                    {dmg?.Pending ? (
+                      <>
+                        <b>{num(dmg.Pending)} waiting for approval</b>
+                        {pendingDays !== null ? (
+                          <span>Oldest pending: {pendingDays === 0 ? "today" : `${pendingDays} day${pendingDays === 1 ? "" : "s"} ago`}</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <b className="ok">No entries waiting for approval</b>
+                    )}
+                  </div>
+                </div>
+                <div className="gd-metrics">
+                  <Meter label="Pending" value={dmg?.Pending || 0} total={dmg?.total || 0} sub="not reviewed yet" tone="warn" loading={showSkeleton} />
+                  <Meter label="On hold" value={dmg?.Hold || 0} total={dmg?.total || 0} sub="parked for a check" tone="info" loading={showSkeleton} />
+                  <Meter
+                    label="Approved"
+                    value={dmg?.Approved || 0}
+                    total={dmg?.total || 0}
+                    sub={`${pct(dmg?.Approved || 0, decided)} of reviewed entries`}
+                    tone="good"
+                    loading={showSkeleton}
+                  />
+                  <Meter label="Rejected" value={dmg?.Rejected || 0} total={dmg?.total || 0} sub="no points given" tone="bad" loading={showSkeleton} />
+                </div>
+                <div className="gd-damage-trend">
+                  <div className="gd-sublabel">Entries per month · last 12 months</div>
+                  {showSkeleton ? <div className="gd-empty">Loading…</div> : <MonthlyBars rows={data?.trend || []} field="damageEntries" unit="entries" />}
+                </div>
+              </div>
             </div>
           </div>
 

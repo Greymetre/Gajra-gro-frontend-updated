@@ -681,7 +681,10 @@ const Customer = React.forwardRef((props, ref) => {
                 </Form.Group>
 
                 <Form.Group className="mb-4">
-                  <Form.Label className="fw-semibold d-block">KYC Status</Form.Label>
+                  <Form.Label className="fw-semibold d-block mb-0">KYC Status</Form.Label>
+                  <Form.Text className="d-block mb-2 text-muted">
+                    Only customers who have scanned a QR code and earned 300+ points
+                  </Form.Text>
                   {KYC_STATUSES.map((status) => (
                     <Form.Check
                       key={status}

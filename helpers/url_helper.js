@@ -20,6 +20,7 @@ export const GET_PARENT_CUSTOMER_DROPDOWN_LIST = "/user/customers/parentDropdown
 export const GET_CUSTOMER_DROPDOWN_ = "/remark";
 
 export const GET_ALL_CUSTOMER = "/user/customers/all";
+export const GET_CUSTOMER_KYC_COUNTS = "/user/customers/kycCounts";
 export const MECHANIC_CATEGORY_REFRESH = "/user/customers/mechanicCategoryRefresh";
 export const MECHANIC_CATEGORY_SUMMARY = "/user/customers/mechanicCategorySummary";
 export const GET_CUSTOMER_BANKINFO = "/user/customers/getCustomerBankInfo";

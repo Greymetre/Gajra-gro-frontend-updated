@@ -11,6 +11,7 @@ import {
   Accordion,
   Spinner,
   InputGroup,
+  Offcanvas,
 } from "react-bootstrap";
 import {
   Download,
@@ -27,6 +28,7 @@ import {
   backendCustomerImport,
   backendDeleteCustomer,
   backendGetAllCustomers,
+  backendGetCustomerKycCounts,
   backendRefreshMechanicCategories,
   backendGetMechanicCategorySummary,
 } from "../../helpers/backend_helper";
@@ -52,7 +54,6 @@ import {
   CustomerProfileViewInterface,
   initialFilterCustomer,
 } from "../../interfaces/customer.interface";
-import { useAccordionButton } from "react-bootstrap/AccordionButton";
 import SelectUserList from "../../components/InputFields/SelectUserList";
 import {
   PaginationCustomerInterface,
@@ -72,18 +73,6 @@ import MechanicCategoryBadge, {
   MECHANIC_CATEGORIES,
 } from "../../components/Customer/MechanicCategoryBadge";
 
-function CustomToggle(props: any) {
-  const { eventKey } = props;
-  const decoratedOnClick = useAccordionButton(eventKey, () =>
-    console.log("totally custom!")
-  );
-
-  return (
-    <Button className="pr-2" variant="dark" onClick={decoratedOnClick}>
-      <Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters
-    </Button>
-  );
-}
 interface KeyValue {
   [key: string]: any;
 }
@@ -208,6 +197,54 @@ const Customer = React.forwardRef((props, ref) => {
       clearTimeout(timer);
     };
   }, [paginationData, filterData]);
+
+  // Filter drawer: KYC status counts follow every other filter, so they refresh when those change
+  const KYC_STATUSES = ["Pending", "Rejected", "Incomplete", "Approved", "All"];
+  const [showFilters, setShowFilters] = useState(false);
+  const [kycCounts, setKycCounts] = useState<Record<string, number> | null>(null);
+  const selectedKycStatuses: string[] = Array.isArray(paginationData.condition)
+    ? paginationData.condition
+    : [];
+  useEffect(() => {
+    if (!showFilters) return;
+    let stale = false;
+    const timer = setTimeout(() => {
+      backendGetCustomerKycCounts({ ...filterData, ...paginationData })
+        .then((res: any) => {
+          if (!stale) setKycCounts(res?.data || null);
+        })
+        .catch(() => {});
+    }, 300);
+    return () => {
+      stale = true;
+      clearTimeout(timer);
+    };
+  }, [
+    showFilters,
+    filterData,
+    paginationData.search,
+    paginationData.startDate,
+    paginationData.endDate,
+  ]);
+  const toggleKycStatus = (status: string, checked: boolean) => {
+    setPaginationData({
+      ...paginationData,
+      currentPage: 1,
+      condition: checked
+        ? Array.from(new Set([...selectedKycStatuses, status]))
+        : selectedKycStatuses.filter((item) => item !== status),
+    });
+  };
+  const clearAllFilters = () => {
+    setFilterData(initialFilterCustomer);
+    setPaginationData({
+      ...paginationData,
+      currentPage: 1,
+      condition: [],
+      startDate: "",
+      endDate: "",
+    });
+  };
 
   // Tiles above the list: mechanics per category; a click filters the list on that category
   const [categorySummary, setCategorySummary] = useState<MechanicCategorySummary | null>(null);
@@ -494,6 +531,13 @@ const Customer = React.forwardRef((props, ref) => {
                         </Button>
                       </Link>
                     ) : null}
+                    <Button
+                      className="cl-btn-dark"
+                      variant="dark"
+                      onClick={() => setShowFilters(true)}
+                    >
+                      <Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters
+                    </Button>
                   </div>
                 </div>
                 <div className="cl-toolbar-row">
@@ -559,360 +603,163 @@ const Customer = React.forwardRef((props, ref) => {
                 onSelect={handleCategoryTileSelect}
               />
             </Col>
-            <Col xl={12} sm={12} xs={12} className="text-end">
-              <Accordion defaultActiveKey="0" className="mb-3">
-                <CustomToggle eventKey="1"></CustomToggle>
-                <Accordion.Collapse eventKey="1">
-                  <Card className="text-start prod-p-card bg-white">
-                    <Card.Body>
-                      <Row>
-                        <Row>
-                          <Col md={4} className="border-end">
-                            <Row>
-                              <Form.Label> Created Date</Form.Label>
-                              <Form.Group
-                                as={Row}
-                                className="mb-4"
-                                controlId="formHorizontalEmail"
-                              >
-                                <Col sm={6}>
-                                  <Form.Label> From</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    name="startDate"
-                                    onChange={(e) => {
-                                      setPaginationData({
-                                        ...paginationData,
-                                        currentPage: 1,
-                                        startDate: e.target.value,
-                                      });
-                                    }}
-                                    value={paginationData.startDate}
-                                    required={true}
-                                    autoComplete="off"
-                                    placeholder="Start Date"
-                                  />
-                                </Col>
-                                <Col sm={6}>
-                                  <Form.Label> To</Form.Label>
-                                  <Form.Control
-                                    type="date"
-                                    name="endDate"
-                                    onChange={(e) => {
-                                      setPaginationData({
-                                        ...paginationData,
-                                        currentPage: 1,
-                                        endDate: e.target.value,
-                                      });
-                                    }}
-                                    value={paginationData.endDate}
-                                    required={true}
-                                    autoComplete="off"
-                                    placeholder="End Date"
-                                  />
-                                </Col>
-                              </Form.Group>
-                            </Row>
-                          </Col>
+            <Offcanvas
+              show={showFilters}
+              onHide={() => setShowFilters(false)}
+              placement="end"
+              className="cl-filter-drawer"
+            >
+              <Offcanvas.Header closeButton>
+                <Offcanvas.Title>
+                  Filters{" "}
+                  <span className="cl-count">
+                    {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")}
+                  </span>
+                </Offcanvas.Title>
+              </Offcanvas.Header>
+              <Offcanvas.Body>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold">Created Date</Form.Label>
+                  <Row>
+                    <Col xs={6}>
+                      <Form.Label className="small text-muted">From</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="startDate"
+                        onChange={(e) => {
+                          setPaginationData({
+                            ...paginationData,
+                            currentPage: 1,
+                            startDate: e.target.value,
+                          });
+                        }}
+                        value={paginationData.startDate}
+                        autoComplete="off"
+                      />
+                    </Col>
+                    <Col xs={6}>
+                      <Form.Label className="small text-muted">To</Form.Label>
+                      <Form.Control
+                        type="date"
+                        name="endDate"
+                        onChange={(e) => {
+                          setPaginationData({
+                            ...paginationData,
+                            currentPage: 1,
+                            endDate: e.target.value,
+                          });
+                        }}
+                        value={paginationData.endDate}
+                        autoComplete="off"
+                      />
+                    </Col>
+                  </Row>
+                </Form.Group>
 
-                          <Col md={3} className="border-end">
-                            <Form.Group
-                              as={Row}
-                              className="mb-3"
-                              controlId="formHorizontalEmail"
-                            >
-                              <Col sm={6}>
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  name="existing"
-                                  type="checkbox"
-                                  value="Existing"
-                                  label="Existing"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    updateFilterData({
-                                      ...filterData,
-                                      existing: checked,
-                                    });
-                                  }}
-                                  defaultChecked={filterData.existing}
-                                />
-                              </Col>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold d-block">Created By</Form.Label>
+                  <Form.Check
+                    inline
+                    id="filter-existing"
+                    type="checkbox"
+                    label="Existing"
+                    checked={!!filterData.existing}
+                    onChange={(e) =>
+                      updateFilterData({ ...filterData, existing: e.target.checked })
+                    }
+                  />
+                  <Form.Check
+                    inline
+                    id="filter-self"
+                    type="checkbox"
+                    label="Self"
+                    checked={!!filterData.self}
+                    onChange={(e) =>
+                      updateFilterData({ ...filterData, self: e.target.checked })
+                    }
+                  />
+                </Form.Group>
 
-                              <Col sm={6}>
-                                <Form.Check
-                                  inline
-                                  className="form-check pt-2 pr-4"
-                                  name="coupon_based"
-                                  type="checkbox"
-                                  value="Self"
-                                  label="Self"
-                                  onChange={(e) => {
-                                    const { value, checked } = e.target;
-                                    updateFilterData({
-                                      ...filterData,
-                                      self: checked,
-                                    });
-                                  }}
-                                  defaultChecked={filterData.self}
-                                />
-                              </Col>
-                            </Form.Group>
-                          </Col>
+                <Form.Group className="mb-4">
+                  <Form.Label className="fw-semibold d-block">KYC Status</Form.Label>
+                  {KYC_STATUSES.map((status) => (
+                    <Form.Check
+                      key={status}
+                      id={`filter-kyc-${status}`}
+                      type="checkbox"
+                      className="mb-2"
+                      label={
+                        <>
+                          {status}
+                          <span className="badge rounded-pill bg-light text-dark border ms-2">
+                            {kycCounts ? (kycCounts[status] ?? 0).toLocaleString("en-IN") : "…"}
+                          </span>
+                        </>
+                      }
+                      checked={selectedKycStatuses.includes(status)}
+                      onChange={(e) => toggleKycStatus(status, e.target.checked)}
+                    />
+                  ))}
+                </Form.Group>
 
-                          <Col md={3}>
-                            <h5>KYC Status</h5>
-                            <Col className="form-check m-2 ">
-                              <Form.Check
-                                inline
-                                className="form-check pt-1 pr-4"
-                                name="condition"
-                                type="checkbox"
-                                value="Pending"
-                                label="Pending"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var condition = paginationData.condition
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.condition)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    condition.push(value);
-                                  } else {
-                                    condition = condition.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    condition: Array.from(new Set(condition)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.condition)
-                                    ? paginationData.condition.some(
-                                        (item) => item == "Pending"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                            <Col className="form-check m-2 ">
-                              <Form.Check
-                                inline
-                                className="form-check pt-1 pr-4"
-                                name="condition"
-                                type="checkbox"
-                                value="Rejected"
-                                label="Rejected"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var condition = paginationData.condition
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.condition)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    condition.push(value);
-                                  } else {
-                                    condition = condition.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    condition: Array.from(new Set(condition)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.condition)
-                                    ? paginationData.condition.some(
-                                        (item) => item == "Rejected"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                            <Col className="form-check m-2 ">
-                              <Form.Check
-                                inline
-                                className="form-check pt-1 pr-4"
-                                name="condition"
-                                type="checkbox"
-                                value="Incomplete"
-                                label="Incomplete"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var condition = paginationData.condition
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.condition)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    condition.push(value);
-                                  } else {
-                                    condition = condition.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    condition: Array.from(new Set(condition)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.condition)
-                                    ? paginationData.condition.some(
-                                        (item) => item == "Incomplete"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                            <Col className="form-check m-2 ">
-                              <Form.Check
-                                inline
-                                className="form-check pt-1 pr-4"
-                                name="condition"
-                                type="checkbox"
-                                value="Approved"
-                                label="Approved"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var condition = paginationData.condition
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.condition)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    condition.push(value);
-                                  } else {
-                                    condition = condition.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    condition: Array.from(new Set(condition)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.condition)
-                                    ? paginationData.condition.some(
-                                        (item) => item == "Approved"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                            <Col className="form-check m-2 ">
-                              <Form.Check
-                                inline
-                                className="form-check pt-1 pr-4"
-                                name="condition"
-                                type="checkbox"
-                                value="All"
-                                label="All"
-                                onChange={(e) => {
-                                  const { value, checked } = e.target;
-                                  var condition = paginationData.condition
-                                    ? JSON.parse(
-                                        JSON.stringify(paginationData.condition)
-                                      )
-                                    : [];
-                                  if (checked) {
-                                    condition.push(value);
-                                  } else {
-                                    condition = condition.paginationData(
-                                      function (item: string) {
-                                        return item !== value;
-                                      }
-                                    );
-                                  }
-                                  setPaginationData({
-                                    ...paginationData,
-                                    currentPage: 1,
-                                    condition: Array.from(new Set(condition)),
-                                  });
-                                }}
-                                defaultChecked={
-                                  Array.isArray(paginationData.condition)
-                                    ? paginationData.condition.some(
-                                        (item) => item == "All"
-                                      )
-                                    : false
-                                }
-                              />
-                            </Col>
-                          </Col>
-                          <Col md={3} className="border-end">
-                            <SelectUserList
-                              handleInputChange={handleFilterChange}
-                              fieldname="userid"
-                              fieldvalue={filterData.userid}
-                            />
-                          </Col>
+                <div className="mb-4">
+                  <SelectUserList
+                    handleInputChange={handleFilterChange}
+                    fieldname="userid"
+                    fieldvalue={filterData.userid}
+                  />
+                </div>
 
-                          <Col md={3} className="border-end">
-                          <Form.Group className="mb-1">
-      <Form.Label htmlFor="User">Customer Type</Form.Label>
-      <Select
-  options={customerTypeOptions}
-  value={customerTypeOptions.find(option => option.value === filterData?.customerType[0])}
-  onChange={(e :any) => {
-    updateFilterData({
-      ...filterData,
-      customerType: [e.value]  // Directly access value from the selected option
-    });
-  }}
-  isSearchable={false}
-/>
-    </Form.Group>
-                          </Col>
+                <Form.Group className="mb-4">
+                  <Form.Label htmlFor="customerType" className="fw-semibold">Customer Type</Form.Label>
+                  <Select
+                    inputId="customerType"
+                    options={customerTypeOptions}
+                    value={customerTypeOptions.find(
+                      (option) => option.value === filterData?.customerType[0]
+                    ) || null}
+                    onChange={(e: any) => {
+                      updateFilterData({
+                        ...filterData,
+                        customerType: e ? [e.value] : [],
+                      });
+                    }}
+                    isClearable
+                    isSearchable={false}
+                  />
+                </Form.Group>
 
-                          <Col md={3} className="border-end">
-                            <Form.Group className="mb-1">
-                              <Form.Label htmlFor="mechanicCategory">Mechanic Category</Form.Label>
-                              <Select
-                                inputId="mechanicCategory"
-                                isMulti
-                                isClearable
-                                placeholder="All categories"
-                                options={mechanicCategoryOptions}
-                                value={mechanicCategoryOptions.filter((option) =>
-                                  (filterData.loyaltyCategory || []).includes(option.value)
-                                )}
-                                onChange={(selected: any) => {
-                                  updateFilterData({
-                                    ...filterData,
-                                    loyaltyCategory: (selected || []).map((option: any) => option.value),
-                                  });
-                                }}
-                                isSearchable={false}
-                              />
-                            </Form.Group>
-                          </Col>
-                        </Row>
-                      </Row>
-                    </Card.Body>
-                  </Card>
-                </Accordion.Collapse>
-              </Accordion>
-            </Col>
+                <Form.Group className="mb-4">
+                  <Form.Label htmlFor="mechanicCategory" className="fw-semibold">Mechanic Category</Form.Label>
+                  <Select
+                    inputId="mechanicCategory"
+                    isMulti
+                    isClearable
+                    placeholder="All categories"
+                    options={mechanicCategoryOptions}
+                    value={mechanicCategoryOptions.filter((option) =>
+                      (filterData.loyaltyCategory || []).includes(option.value)
+                    )}
+                    onChange={(selected: any) => {
+                      updateFilterData({
+                        ...filterData,
+                        loyaltyCategory: (selected || []).map((option: any) => option.value),
+                      });
+                    }}
+                    isSearchable={false}
+                  />
+                </Form.Group>
+
+                <div className="d-flex gap-2 pt-2">
+                  <Button variant="outline-secondary" className="flex-fill" onClick={clearAllFilters}>
+                    Clear all
+                  </Button>
+                  <Button variant="dark" className="flex-fill" onClick={() => setShowFilters(false)}>
+                    Show {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")} customers
+                  </Button>
+                </div>
+              </Offcanvas.Body>
+            </Offcanvas>
           </Row>
         </Col>
 

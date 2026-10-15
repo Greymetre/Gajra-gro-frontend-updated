@@ -47,6 +47,9 @@ export const backendUsersDropDownList = (data) =>
 // Get all Customers
 export const backendGetAllCustomers = (data) =>
   post(url.GET_ALL_CUSTOMER, data);
+// Customers per KYC status for the current list filters
+export const backendGetCustomerKycCounts = (data) =>
+  post(url.GET_CUSTOMER_KYC_COUNTS, data);
 // Recompute every mechanic's category (Platinum .. Bronze) now
 export const backendRefreshMechanicCategories = () =>
   post(url.MECHANIC_CATEGORY_REFRESH, {});

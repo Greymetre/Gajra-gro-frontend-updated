@@ -185,7 +185,11 @@ const Customer = React.forwardRef((props, ref) => {
         setCustomerData(docs);
         setIsLoading(false);
       }
-    );
+    ).catch(() => {
+      if (isStale()) return;
+      setCustomerData([]);
+      setIsLoading(false);
+    });
   };
   useEffect(() => {
     let stale = false;
@@ -545,6 +549,8 @@ const Customer = React.forwardRef((props, ref) => {
                     className="cl-search"
                     type="text"
                     onChange={(e) => {
+                      // drop the old results right away, so they are not mistaken for search matches
+                      setCustomerData([]);
                       setPaginationData({
                         ...paginationData,
                         currentPage: 1,
@@ -1614,6 +1620,13 @@ const Customer = React.forwardRef((props, ref) => {
         {isLoading ? (
           <Col xl={12} sm={12} xs={12} className="mb-3 text-center">
             <Spinner animation="border" />
+          </Col>
+        ) : null}
+        {!isLoading && Array.isArray(customerData) && !customerData.length ? (
+          <Col xl={12} sm={12} xs={12} className="mb-3 text-center text-muted py-4">
+            {paginationData.search?.trim()
+              ? `No customer found for "${paginationData.search.trim()}"`
+              : "No customers match these filters"}
           </Col>
         ) : null}
       </Row>

@@ -268,9 +268,29 @@ const Customer = React.forwardRef((props, ref) => {
       .catch((err) => {});
   };
 
+  // The list always shows 20 per page; "Show" only picks how many rows Export Excel downloads,
+  // fetched with the same filters
+  const EXPORT_COUNTS = [20, 200, 500, 1000, 2000, 5000, 10000];
+  const [exportCount, setExportCount] = useState(EXPORT_COUNTS[0]);
+  const [exporting, setExporting] = useState(false);
   const handleOnExport = async () => {
+    const count = exportCount;
+    setExporting(true);
+    let rows: any[] = [];
+    try {
+      const res: any = await backendGetAllCustomers({
+        ...filterData,
+        ...paginationData,
+        currentPage: 1,
+        recordPerPage: count,
+      });
+      rows = res?.data?.docs || [];
+    } catch (e) {
+      setExporting(false);
+      return;
+    }
     const mappedArray = await Promise.all(
-      customerData.map(async (customer: any) => {
+      rows.map(async (customer: any) => {
         customer.createdAt = customer.createdAt
           ? new Date(customer.createdAt).toLocaleDateString("en-IN", {
               timeZone: "Asia/Kolkata",
@@ -295,6 +315,7 @@ const Customer = React.forwardRef((props, ref) => {
       ws = XLSX.utils.json_to_sheet(mappedArray);
     XLSX.utils.book_append_sheet(wb, ws, "Data");
     XLSX.writeFile(wb, "customers.xlsx");
+    setExporting(false);
   };
   const handleFilterChange = async (
     event: React.ChangeEvent<HTMLInputElement>
@@ -431,10 +452,20 @@ const Customer = React.forwardRef((props, ref) => {
                     {moduleAccess?.canExport ? (
                       <Button
                         onClick={handleOnExport}
+                        disabled={exporting}
                         className="cl-btn-outline"
                         variant="outline-light"
                       >
-                        <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
+                        {exporting ? (
+                          <>
+                            <Spinner as="span" animation="border" size="sm" className="me-2" />
+                            Exporting...
+                          </>
+                        ) : (
+                          <>
+                            <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
+                          </>
+                        )}
                       </Button>
                     ) : null}
                     {moduleAccess?.canUpdate ? (
@@ -483,24 +514,14 @@ const Customer = React.forwardRef((props, ref) => {
                   <Form.Group className="cl-show mb-0">
                     <Form.Label className="mb-0">Show</Form.Label>
                     <Form.Select
-                      value={paginationData.recordPerPage}
-                      onChange={(e: any) => {
-                        setPaginationData({
-                          ...paginationData,
-                          currentPage: 1,
-                          recordPerPage: e.target.value,
-                        });
-                      }}
+                      value={exportCount}
+                      onChange={(e: any) => setExportCount(Number(e.target.value))}
                     >
-                      <option value={20}>{20}</option>
-                      <option value={50}>{50}</option>
-                      <option value={100}>{100}</option>
-                      <option value={200}>{200}</option>
-                      <option value={500}>{500}</option>
-                      <option value={1000}>{1000}</option>
-                      <option value={2000}>{2000}</option>
-                      <option value={5000}>5000</option>
-                      <option value={10000}>10000</option>
+                      {EXPORT_COUNTS.map((count) => (
+                        <option key={count} value={count}>
+                          {count}
+                        </option>
+                      ))}
                     </Form.Select>
                   </Form.Group>
                   <div className="cl-import">

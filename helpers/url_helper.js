@@ -207,3 +207,8 @@ export const POST_IMPORT_CALLSUMMARY = "/user/callcenter/import";
 //Loyalty Module Routes
 export const GET_NEWOTP_REQUEST = "/loyalty/auth/newOtpRequest";
 export const REPLACE_PACKAGE_NUMBER = "/user/coupons/replacePackingSlip";
+
+// Cashfree statement report
+export const CASHFREE_STATEMENT = "/user/cashfree-statement";
+export const CASHFREE_STATEMENT_IMPORT = "/user/cashfree-statement/import";
+export const CASHFREE_STATEMENT_EXPORT_ALL = "/user/cashfree-statement/export-all";

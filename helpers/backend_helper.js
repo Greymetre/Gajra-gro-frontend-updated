@@ -631,3 +631,8 @@ export const backendNewOtpRequest = (data) =>
 
 /*========== Coupon Searc Module ===============*/
 export const backendSearchCoupons = (data) => post(url.COUPON_SEARCH, data);
+
+/*========== Cashfree Statement Report ===============*/
+export const backendGetCashfreeStatements = (params) => get(url.CASHFREE_STATEMENT, { params });
+export const backendImportCashfreeStatement = (data) => post(url.CASHFREE_STATEMENT_IMPORT, data);
+export const backendExportCashfreeStatements = (params) => get(url.CASHFREE_STATEMENT_EXPORT_ALL, { params });

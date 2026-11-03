@@ -7,52 +7,15 @@ import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
 import Layout from '../../components/Layout'
 import PaginationNav from '../../components/Common/PaginationNav'
 import {
-  backendExportCashfreeStatements,
+  backendGetCashfreeExportReport,
   backendGetCashfreeStatements,
   backendImportCashfreeStatement,
 } from '../../helpers/backend_helper'
 import { EXCEL_DEMO_IMAGE, IMAGE_URL } from '../../utils/constant'
+import { ACCOUNT_STATEMENT_HEADERS, TRANSFER_STATEMENT_HEADERS, downloadCashfreeReport } from '../../utils/cashfreeReport'
 
 type CashfreeRow = Record<string, any>
 type StatementType = 'ACCOUNT' | 'TRANSFER'
-
-const ACCOUNT_STATEMENT_HEADERS = [
-  'Added On',
-  'Debit/Credit',
-  'Particulars',
-  'Charged Amount (INR)',
-  'Amount (INR)',
-  'Service Charge (INR)',
-  'Service Tax (INR)',
-  'Closing Balance (INR)',
-  'Event Id',
-  'Remarks',
-]
-
-const TRANSFER_STATEMENT_HEADERS = [
-  'Added On',
-  'Amount',
-  'Transfer Id',
-  'Reference Id',
-  'Status',
-  'Beneficiary Name',
-  'Beneficiary Id',
-  'Bank Account',
-  'IFSC',
-  'VPA',
-  'Remarks',
-  'Bank Reference No',
-  'Service Charge',
-  'Service Tax',
-  'Acknowledged',
-  'Mode',
-  'Status Code',
-  'Payment Instrument ID',
-  'Last checked at',
-  'Added by',
-  'Status Description',
-  'Extended UTR',
-]
 
 const STATEMENTS: Record<StatementType, { label: string; headers: string[]; fileName: string }> = {
   ACCOUNT: { label: 'Account Statement', headers: ACCOUNT_STATEMENT_HEADERS, fileName: 'cashfreeAccountStatement' },
@@ -97,6 +60,9 @@ const CashfreeReport = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
+  // set when the API refuses access (no reports.cashfree permission)
+  const [accessDenied, setAccessDenied] = useState(false)
 
   const fetchStatements = async (statementType: StatementType, page: number) => {
     setIsLoading(true)
@@ -105,8 +71,8 @@ const CashfreeReport = () => {
       if (!res.isError && res.data) {
         setLists((prev) => ({ ...prev, [statementType]: res.data }))
       }
-    } catch (error) {
-      console.error(error)
+    } catch (error: any) {
+      if (error?.response?.status === 403) setAccessDenied(true)
     } finally {
       setIsLoading(false)
     }
@@ -125,20 +91,20 @@ const CashfreeReport = () => {
   }
 
   const handleOnExport = async () => {
+    setIsExporting(true)
     try {
-      const res = await backendExportCashfreeStatements({ statementType: activeTab })
-      const rows: CashfreeRow[] = res?.data || []
-      if (!rows.length) {
-        alert('No data to export')
+      const res = await backendGetCashfreeExportReport()
+      const { account = [], transfer = [], redemptions = [] } = res?.data || {}
+      if (!account.length && !transfer.length) {
+        alert('No Cashfree data to export. Please import the statements first.')
         return
       }
-      const { headers, fileName } = STATEMENTS[activeTab]
-      const wb = utils.book_new()
-      utils.book_append_sheet(wb, utils.json_to_sheet(rows, { header: headers }), 'Data')
-      writeFile(wb, `${fileName}.xlsx`)
-    } catch (error) {
-      console.error(error)
-      alert('Unable to export data')
+      downloadCashfreeReport(account, transfer, redemptions)
+    } catch (error: any) {
+      if (error?.response?.status === 403) setAccessDenied(true)
+      alert(error?.response?.data?.message || 'Unable to export report')
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -192,7 +158,7 @@ const CashfreeReport = () => {
         setActiveTab(importType)
       }
     } catch (error: any) {
-      console.error(error)
+      if (error?.response?.status === 403) setAccessDenied(true)
       alert(error?.response?.data?.message || 'Unable to import file')
     } finally {
       setIsImporting(false)
@@ -244,6 +210,16 @@ const CashfreeReport = () => {
     )
   }
 
+  if (accessDenied) {
+    return (
+      <Layout>
+        <BreadcrumbComponent firstItem={{ href: '/dashboard', label: 'Home' }} secondItem={{ href: '', label: '' }} itemlabel='Cashfree Report' />
+        <h3 className="mb-3">Access denied</h3>
+        <p>You do not have permission to view the Cashfree report.</p>
+      </Layout>
+    )
+  }
+
   return (
     <Layout>
       <BreadcrumbComponent firstItem={{ href: '/dashboard', label: 'Home' }} secondItem={{ href: '', label: '' }} itemlabel='Cashfree Report' />
@@ -261,8 +237,8 @@ const CashfreeReport = () => {
                 <Button onClick={openImportModal} variant="outline-light">
                   <Upload /> Import
                 </Button>
-                <Button onClick={handleOnExport} variant="outline-light">
-                  <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
+                <Button onClick={handleOnExport} variant="outline-light" disabled={isExporting}>
+                  {isExporting ? <Spinner animation="border" size="sm" /> : <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} />} Export
                 </Button>
               </div>
             </Col>

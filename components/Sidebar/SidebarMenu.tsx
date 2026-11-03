@@ -148,6 +148,13 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
         icon: <Clipboard2DataFill/>,
         submanus: [],
         canAccess : "reports.otprequest"
+      },
+      {
+        label: 'Cashfree Report',
+        href: '/reports/cashfree',
+        icon: <CurrencyDollar/>,
+        submanus: [],
+        canAccess : "reports.cashfree"
       }],
       canAccess : "reports.read"
     },

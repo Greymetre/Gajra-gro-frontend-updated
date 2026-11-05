@@ -643,3 +643,4 @@ export const backendGetNewsFilters = (params) => get(url.NEWS_FILTERS, { params 
 // FormData: stateId, districtId, cityId, customerIds (JSON array), title, message, image (file)
 export const backendSendNews = (data) => submitFormData(url.NEWS_SEND, data, "POST");
 export const backendGetNewsHistory = (params) => get(url.NEWS_HISTORY, { params });
+export const backendDeleteNews = (id) => del(`${url.NEWS_DELETE}/${id}`);

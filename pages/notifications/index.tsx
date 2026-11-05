@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Button, Card, Col, Form, Image, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
-import { SendFill } from 'react-bootstrap-icons'
+import { SendFill, Trash } from 'react-bootstrap-icons'
+import { useSelector } from 'react-redux'
 import Select from 'react-select'
 import debounce from 'lodash.debounce'
 import moment from 'moment'
 import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
 import Layout from '../../components/Layout'
 import PaginationNav from '../../components/Common/PaginationNav'
-import { backendGetNewsFilters, backendGetNewsHistory, backendSendNews } from '../../helpers/backend_helper'
+import { backendDeleteNews, backendGetNewsFilters, backendGetNewsHistory, backendSendNews } from '../../helpers/backend_helper'
 import { IMAGE_URL } from '../../utils/constant'
 
 // Same flow as Duke's News Management: filter State -> District -> City -> Customers,
@@ -59,6 +60,10 @@ export default function NewsManagement() {
   // ---- history ----
   const [history, setHistory] = useState({ docs: [] as any[], totalDocs: 0, totalPages: 0, page: 1 })
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [deletingId, setDeletingId] = useState('')
+  const [historyAlert, setHistoryAlert] = useState<{ variant: 'success' | 'danger'; text: string } | null>(null)
+  const permissionData = useSelector((state: any) => state?.permission?.permission)
+  const canDelete = Array.isArray(permissionData) && permissionData.includes('news.delete')
 
   const loadFilters = useCallback(async (next: Filters, search = '') => {
     const id = ++requestId.current
@@ -177,6 +182,27 @@ export default function NewsManagement() {
   }
 
   useEffect(() => { if (activeTab === 'history') loadHistory(1) }, [activeTab])
+
+  const deleteNews = async (row: any) => {
+    if (!window.confirm(`Delete "${row.title}"?\n\nIt will be removed from News History and from the customers' app notification list. This cannot be undone.`)) return
+    setDeletingId(row._id)
+    setHistoryAlert(null)
+    try {
+      const res = await backendDeleteNews(row._id)
+      if (res?.isError) {
+        setHistoryAlert({ variant: 'danger', text: res?.message || 'Unable to delete news.' })
+        return
+      }
+      setHistoryAlert({ variant: 'success', text: res?.message || 'News deleted successfully' })
+      // Stay on the same page, or go back one page if this was its last row
+      const page = history.page || 1
+      await loadHistory(history.docs.length === 1 && page > 1 ? page - 1 : page)
+    } catch (error: any) {
+      setHistoryAlert({ variant: 'danger', text: errorMessage(error, 'Unable to delete news. Please try again.') })
+    } finally {
+      setDeletingId('')
+    }
+  }
 
   const locationText = (f: any) =>
     [f?.city, f?.district, f?.state].filter(Boolean).join(', ') || 'All locations'
@@ -318,6 +344,9 @@ export default function NewsManagement() {
             </Tab>
 
             <Tab eventKey="history" title="News History">
+              {historyAlert && (
+                <Alert variant={historyAlert.variant} dismissible onClose={() => setHistoryAlert(null)}>{historyAlert.text}</Alert>
+              )}
               <div className="mb-2">
                 <PaginationNav
                   align="start"
@@ -343,11 +372,12 @@ export default function NewsManagement() {
                         <th className="text-nowrap">No App Token</th>
                         <th className="text-nowrap">Seen</th>
                         <th className="text-nowrap">Sent By</th>
+                        {canDelete && <th className="text-nowrap">Action</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {loadingHistory ? (
-                        <tr><td colSpan={11} className="text-center"><Spinner animation="border" size="sm" /></td></tr>
+                        <tr><td colSpan={canDelete ? 12 : 11} className="text-center"><Spinner animation="border" size="sm" /></td></tr>
                       ) : history.docs.length ? (
                         history.docs.map((row: any, index: number) => (
                           <tr key={row._id}>
@@ -374,10 +404,23 @@ export default function NewsManagement() {
                             <td>{row.withoutTokenCount ?? 0}</td>
                             <td>{row.seenCount ?? 0}</td>
                             <td className="text-nowrap">{row.createdByName || '-'}</td>
+                            {canDelete && (
+                              <td>
+                                <Button
+                                  variant="outline-danger"
+                                  size="sm"
+                                  title="Delete news"
+                                  disabled={!!deletingId}
+                                  onClick={() => deleteNews(row)}
+                                >
+                                  {deletingId === row._id ? <Spinner animation="border" size="sm" /> : <Trash />}
+                                </Button>
+                              </td>
+                            )}
                           </tr>
                         ))
                       ) : (
-                        <tr><td colSpan={11} className="text-center">No news sent yet</td></tr>
+                        <tr><td colSpan={canDelete ? 12 : 11} className="text-center">No news sent yet</td></tr>
                       )}
                     </tbody>
                   </Table>

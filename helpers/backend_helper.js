@@ -636,3 +636,10 @@ export const backendSearchCoupons = (data) => post(url.COUPON_SEARCH, data);
 export const backendGetCashfreeStatements = (params) => get(url.CASHFREE_STATEMENT, { params });
 export const backendImportCashfreeStatement = (data) => post(url.CASHFREE_STATEMENT_IMPORT, data);
 export const backendGetCashfreeExportReport = () => get(url.CASHFREE_STATEMENT_EXPORT_REPORT);
+
+/*========== News Management ===============*/
+// params: { stateId, districtId, cityId, search }
+export const backendGetNewsFilters = (params) => get(url.NEWS_FILTERS, { params });
+// FormData: stateId, districtId, cityId, customerIds (JSON array), title, message, image (file)
+export const backendSendNews = (data) => submitFormData(url.NEWS_SEND, data, "POST");
+export const backendGetNewsHistory = (params) => get(url.NEWS_HISTORY, { params });

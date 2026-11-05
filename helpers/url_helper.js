@@ -212,3 +212,8 @@ export const REPLACE_PACKAGE_NUMBER = "/user/coupons/replacePackingSlip";
 export const CASHFREE_STATEMENT = "/user/cashfree-statement";
 export const CASHFREE_STATEMENT_IMPORT = "/user/cashfree-statement/import";
 export const CASHFREE_STATEMENT_EXPORT_REPORT = "/user/cashfree-statement/export-report";
+
+// News Management (push news to customers)
+export const NEWS_FILTERS = "/user/notifications/filters";
+export const NEWS_SEND = "/user/notifications/send";
+export const NEWS_HISTORY = "/user/notifications/history";

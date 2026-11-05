@@ -7,7 +7,7 @@ import Image from 'next/image'
 import {ShopWindow, Speedometer2, CurrencyDollar, BagCheckFill, AwardFill,
   GiftFill, QrCodeScan, GearWideConnected, GridFill, Dice4Fill, GearFill,
   ClipboardCheckFill, Clipboard2DataFill, PeopleFill, Headset, Tools,
-  PersonCheckFill, GeoAltFill ,FileEarmarkExcel
+  PersonCheckFill, GeoAltFill ,FileEarmarkExcel, MegaphoneFill
 } from 'react-bootstrap-icons'
 import vectormenu from '../../assets/images/auth/Vectormenu.svg'
 import { backendGetUserPermissions } from '../../helpers/backend_helper'
@@ -157,6 +157,13 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
         canAccess : "reports.cashfree"
       }],
       canAccess : "reports.read"
+    },
+    {
+      label: 'News Management',
+      href: '/notifications',
+      icon: <MegaphoneFill/>,
+      submanus: [],
+      canAccess : "news.read"
     },
     {
       label: 'Users', href: '/users',

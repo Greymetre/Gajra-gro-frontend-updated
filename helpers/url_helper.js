@@ -218,3 +218,4 @@ export const NEWS_FILTERS = "/user/notifications/filters";
 export const NEWS_SEND = "/user/notifications/send";
 export const NEWS_HISTORY = "/user/notifications/history";
 export const NEWS_DELETE = "/user/notifications";
+export const CASHFREE_STATEMENT_SYNC_ACCOUNT = "/user/cashfree-statement/sync-account";

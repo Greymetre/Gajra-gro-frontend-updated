@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Button, Card, Col, Form, Image, Modal, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
-import { Download, Upload } from 'react-bootstrap-icons'
+import { ArrowRepeat, Download, Upload } from 'react-bootstrap-icons'
 import { utils, writeFile } from 'xlsx'
 import * as XLSX from 'xlsx'
 import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
@@ -10,6 +10,7 @@ import {
   backendGetCashfreeExportReport,
   backendGetCashfreeStatements,
   backendImportCashfreeStatement,
+  backendSyncCashfreeAccountStatement,
 } from '../../helpers/backend_helper'
 import { EXCEL_DEMO_IMAGE, IMAGE_URL } from '../../utils/constant'
 import { ACCOUNT_STATEMENT_HEADERS, TRANSFER_STATEMENT_HEADERS, downloadCashfreeReport } from '../../utils/cashfreeReport'
@@ -61,6 +62,7 @@ const CashfreeReport = () => {
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState('')
   const [isExporting, setIsExporting] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
   // set when the API refuses access (no reports.cashfree permission)
   const [accessDenied, setAccessDenied] = useState(false)
 
@@ -105,6 +107,27 @@ const CashfreeReport = () => {
       alert(error?.response?.data?.message || 'Unable to export report')
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  // Account statement of the last 31 days straight from Cashfree (it also syncs on its own every 30 minutes)
+  const handleSyncAccount = async () => {
+    setIsSyncing(true)
+    try {
+      const res = await backendSyncCashfreeAccountStatement({ days: 31 })
+      const result = res?.data || {}
+      alert(`Account statement synced from Cashfree.\nRows: ${result.fetched ?? 0}\nNew: ${result.inserted ?? 0}\nUpdated: ${result.updated ?? 0}`)
+      if (activeTab === 'ACCOUNT') {
+        fetchStatements('ACCOUNT', 1)
+      } else {
+        setLists((prev) => ({ ...prev, ACCOUNT: { ...prev.ACCOUNT, page: 1 } }))
+        setActiveTab('ACCOUNT')
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 403) setAccessDenied(true)
+      alert(error?.response?.data?.message || 'Unable to sync from Cashfree')
+    } finally {
+      setIsSyncing(false)
     }
   }
 
@@ -231,6 +254,9 @@ const CashfreeReport = () => {
                 Cashfree Report ({(lists[activeTab].totalDocs ?? 0).toLocaleString('en-IN')})
               </h3>
               <div className="d-flex flex-wrap align-items-center justify-content-end gap-2">
+                <Button onClick={handleSyncAccount} variant="outline-light" disabled={isSyncing}>
+                  {isSyncing ? <Spinner animation="border" size="sm" /> : <ArrowRepeat />} Sync from Cashfree
+                </Button>
                 <Button onClick={() => setShowTemplateModal(true)} variant="outline-light">
                   <Download /> Template
                 </Button>

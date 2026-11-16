@@ -42,6 +42,9 @@ interface ProductValue {
   partNo:string;
 }
 
+// _id is the scheme id and one scheme lists many products, so a table row is scheme + product + points
+const schemeRowKey = (row?: ProductValue | null) => (row ? `${row._id}|${row.productid}|${row.points}` : '');
+
 interface ProductIdOption {  
   value: string;
   label: string;
@@ -137,7 +140,7 @@ const ApprovedModal: React.FC<MyVerticallyCenteredModalProps> = ({ approveshow, 
   // Several schemes can list the same product with different points, so the row itself is selected.
   // Ticking the ticked row again clears it; only one row can be ticked.
   const handleSetValues = (row: ProductValue) => {
-    if (selectedScheme?._id === row._id) {
+    if (schemeRowKey(selectedScheme) === schemeRowKey(row)) {
       setSelectedScheme(null)
       return
     }
@@ -222,7 +225,7 @@ const ApprovedModal: React.FC<MyVerticallyCenteredModalProps> = ({ approveshow, 
           customerid: data?.customerid,
           points: otherProductValue?.point,
           ...(status == "Approved" && { schemeid: otherProductValue?.schemeid }), // Include schemeid only if status is "Approved"
-          ...(status == "Approved" && selectedScheme && { selectedSchemeid: selectedScheme._id }),
+          ...(status == "Approved" && selectedScheme && { selectedSchemeid: selectedScheme._id, selectedPoints: Number(selectedScheme.points) }),
           statusType: status,
           remark: description,
           pointType: otherProductValue?.pointType
@@ -586,12 +589,12 @@ const [searchTransaction , setSearchTransaction] = useState('');
                           <tbody>
                             {Array.isArray(productList) && productList.map((item, index) => {
                               return (
-                                <tr key={index} onClick={() => handleSetValues(item)} style={{ cursor: 'pointer' }} className={selectedScheme?._id === item._id ? 'table-active' : ''} >
+                                <tr key={index} onClick={() => handleSetValues(item)} style={{ cursor: 'pointer' }} className={schemeRowKey(selectedScheme) === schemeRowKey(item) ? 'table-active' : ''} >
                                   <td onClick={(e) => e.stopPropagation()}>
                                     <Form.Check
                                       type="checkbox"
                                       aria-label={`Select ${item.points} points`}
-                                      checked={selectedScheme?._id === item._id}
+                                      checked={schemeRowKey(selectedScheme) === schemeRowKey(item)}
                                       onChange={() => handleSetValues(item)}
                                     />
                                   </td>

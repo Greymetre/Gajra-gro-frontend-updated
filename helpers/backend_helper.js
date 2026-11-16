@@ -645,3 +645,4 @@ export const backendSendNews = (data) => submitFormData(url.NEWS_SEND, data, "PO
 export const backendGetNewsHistory = (params) => get(url.NEWS_HISTORY, { params });
 export const backendDeleteNews = (id) => del(`${url.NEWS_DELETE}/${id}`);
 export const backendSyncCashfreeAccountStatement = (data) => post(url.CASHFREE_STATEMENT_SYNC_ACCOUNT, data);
+export const backendGetCashfreeSyncStatus = () => get(url.CASHFREE_STATEMENT_SYNC_STATUS);

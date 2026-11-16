@@ -219,3 +219,4 @@ export const NEWS_SEND = "/user/notifications/send";
 export const NEWS_HISTORY = "/user/notifications/history";
 export const NEWS_DELETE = "/user/notifications";
 export const CASHFREE_STATEMENT_SYNC_ACCOUNT = "/user/cashfree-statement/sync-account";
+export const CASHFREE_STATEMENT_SYNC_STATUS = "/user/cashfree-statement/sync-status";

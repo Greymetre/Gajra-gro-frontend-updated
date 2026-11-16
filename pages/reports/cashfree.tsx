@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { Button, Card, Col, Form, Image, Modal, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
+import React, { useEffect, useRef, useState } from 'react'
+import { Alert, Button, Card, Col, Form, Image, Modal, ProgressBar, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
 import { ArrowRepeat, Download, Upload } from 'react-bootstrap-icons'
 import { utils, writeFile } from 'xlsx'
 import * as XLSX from 'xlsx'
@@ -11,11 +11,29 @@ import {
   backendGetCashfreeStatements,
   backendImportCashfreeStatement,
   backendSyncCashfreeAccountStatement,
+  backendGetCashfreeSyncStatus,
 } from '../../helpers/backend_helper'
 import { EXCEL_DEMO_IMAGE, IMAGE_URL } from '../../utils/constant'
 import { ACCOUNT_STATEMENT_HEADERS, TRANSFER_STATEMENT_HEADERS, downloadCashfreeReport } from '../../utils/cashfreeReport'
 
 type CashfreeRow = Record<string, any>
+
+interface SyncStatus {
+  status: 'idle' | 'running' | 'success' | 'failed'
+  startedBy: 'manual' | 'auto' | ''
+  days: number
+  daysDone: number
+  fetched: number
+  inserted: number
+  updated: number
+  error: string
+  startedAt: string | null
+  finishedAt: string | null
+  lastApiRowAt: string | null
+}
+
+const formatDateTime = (value?: string | null) =>
+  value ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'
 type StatementType = 'ACCOUNT' | 'TRANSFER'
 
 const STATEMENTS: Record<StatementType, { label: string; headers: string[]; fileName: string }> = {
@@ -62,7 +80,12 @@ const CashfreeReport = () => {
   const [isImporting, setIsImporting] = useState(false)
   const [importProgress, setImportProgress] = useState('')
   const [isExporting, setIsExporting] = useState(false)
-  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
+  const [isStartingSync, setIsStartingSync] = useState(false)
+  // result panel is shown only for a sync started from this page
+  const [showSyncResult, setShowSyncResult] = useState(false)
+  const syncPollRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isSyncRunning = syncStatus?.status === 'running'
   // set when the API refuses access (no reports.cashfree permission)
   const [accessDenied, setAccessDenied] = useState(false)
 
@@ -110,25 +133,97 @@ const CashfreeReport = () => {
     }
   }
 
-  // Account statement of the last 31 days straight from Cashfree (it also syncs on its own every 30 minutes)
-  const handleSyncAccount = async () => {
-    setIsSyncing(true)
+  // Account statement sync runs on the server; the page polls its progress every 2 seconds while it runs
+  const activeTabRef = useRef(activeTab)
+  useEffect(() => { activeTabRef.current = activeTab }, [activeTab])
+  const lastSyncStateRef = useRef<SyncStatus['status'] | null>(null)
+
+  const loadSyncStatus = async () => {
+    if (syncPollRef.current) clearTimeout(syncPollRef.current)
     try {
-      const res = await backendSyncCashfreeAccountStatement({ days: 31 })
-      const result = res?.data || {}
-      alert(`Account statement synced from Cashfree.\nRows: ${result.fetched ?? 0}\nNew: ${result.inserted ?? 0}\nUpdated: ${result.updated ?? 0}`)
-      if (activeTab === 'ACCOUNT') {
-        fetchStatements('ACCOUNT', 1)
-      } else {
-        setLists((prev) => ({ ...prev, ACCOUNT: { ...prev.ACCOUNT, page: 1 } }))
-        setActiveTab('ACCOUNT')
+      const res = await backendGetCashfreeSyncStatus()
+      const status: SyncStatus = res?.data
+      if (!status) return
+      // a run just finished: show the new rows
+      if (lastSyncStateRef.current === 'running' && status.status !== 'running') {
+        if (activeTabRef.current === 'ACCOUNT') {
+          fetchStatements('ACCOUNT', 1)
+        } else {
+          setLists((prev) => ({ ...prev, ACCOUNT: { ...prev.ACCOUNT, page: 1 } }))
+        }
+      }
+      lastSyncStateRef.current = status.status
+      setSyncStatus(status)
+      if (status.status === 'running') {
+        syncPollRef.current = setTimeout(loadSyncStatus, 2000)
       }
     } catch (error: any) {
       if (error?.response?.status === 403) setAccessDenied(true)
-      alert(error?.response?.data?.message || 'Unable to sync from Cashfree')
-    } finally {
-      setIsSyncing(false)
     }
+  }
+
+  useEffect(() => {
+    loadSyncStatus()
+    return () => { if (syncPollRef.current) clearTimeout(syncPollRef.current) }
+  }, [])
+
+  const handleSyncAccount = async () => {
+    setIsStartingSync(true)
+    setShowSyncResult(true)
+    try {
+      const res = await backendSyncCashfreeAccountStatement({ days: 31 })
+      if (res?.data) {
+        lastSyncStateRef.current = res.data.status
+        setSyncStatus(res.data)
+      }
+      if (activeTab !== 'ACCOUNT') setActiveTab('ACCOUNT')
+      loadSyncStatus()
+    } catch (error: any) {
+      if (error?.response?.status === 403) setAccessDenied(true)
+      setSyncStatus((previous) => ({
+        ...(previous || { startedBy: '', days: 0, daysDone: 0, fetched: 0, inserted: 0, updated: 0, startedAt: null, finishedAt: null, lastApiRowAt: null }),
+        status: 'failed',
+        error: error?.response?.data?.message || 'Could not reach the server. Please try again.',
+      } as SyncStatus))
+    } finally {
+      setIsStartingSync(false)
+    }
+  }
+
+  const renderSyncPanel = () => {
+    if (!syncStatus) return null
+    const { status, days, daysDone, fetched, inserted, updated, error, finishedAt, startedBy } = syncStatus
+    const counts = `${fetched.toLocaleString('en-IN')} rows read · ${inserted.toLocaleString('en-IN')} new · ${updated.toLocaleString('en-IN')} updated`
+    if (status === 'running') {
+      const percent = days ? Math.round((daysDone / days) * 100) : 0
+      return (
+        <Alert variant="info" className="mb-3">
+          <div className="d-flex align-items-center gap-2 mb-2">
+            <Spinner animation="border" size="sm" />
+            <strong>Syncing account statement from Cashfree{startedBy === 'auto' ? ' (automatic sync)' : ''}…</strong>
+          </div>
+          <ProgressBar now={percent} label={`${percent}%`} className="mb-2" />
+          <div className="small">Day {Math.min(daysDone + 1, days)} of {days} · {counts}. You can keep working, this page updates on its own.</div>
+        </Alert>
+      )
+    }
+    if (!showSyncResult) return null
+    if (status === 'success') {
+      return (
+        <Alert variant="success" className="mb-3" dismissible onClose={() => setShowSyncResult(false)}>
+          <strong>Sync complete.</strong> Last {days} days synced at {formatDateTime(finishedAt)}: {counts}.
+        </Alert>
+      )
+    }
+    if (status === 'failed') {
+      return (
+        <Alert variant="danger" className="mb-3" dismissible onClose={() => setShowSyncResult(false)}>
+          <strong>Sync failed.</strong> {error || 'Unknown error'}
+          {fetched ? <div className="small mt-1">Saved before it stopped: {counts}. Running the sync again continues safely (no duplicates).</div> : null}
+        </Alert>
+      )
+    }
+    return null
   }
 
   const openImportModal = () => {
@@ -254,9 +349,15 @@ const CashfreeReport = () => {
                 Cashfree Report ({(lists[activeTab].totalDocs ?? 0).toLocaleString('en-IN')})
               </h3>
               <div className="d-flex flex-wrap align-items-center justify-content-end gap-2">
-                <Button onClick={handleSyncAccount} variant="outline-light" disabled={isSyncing}>
-                  {isSyncing ? <Spinner animation="border" size="sm" /> : <ArrowRepeat />} Sync from Cashfree
-                </Button>
+                <div className="d-flex flex-column align-items-end">
+                  <Button onClick={handleSyncAccount} variant="dark" disabled={isSyncRunning || isStartingSync}>
+                    {isSyncRunning || isStartingSync ? <Spinner animation="border" size="sm" /> : <ArrowRepeat />}{' '}
+                    {isSyncRunning ? 'Syncing…' : 'Sync from Cashfree'}
+                  </Button>
+                  <small className="text-muted mt-1">
+                    Last synced: {formatDateTime(syncStatus?.status === 'success' ? syncStatus.finishedAt : syncStatus?.lastApiRowAt)} · auto every 30 min
+                  </small>
+                </div>
                 <Button onClick={() => setShowTemplateModal(true)} variant="outline-light">
                   <Download /> Template
                 </Button>
@@ -268,6 +369,8 @@ const CashfreeReport = () => {
                 </Button>
               </div>
             </Col>
+
+            <Col xs={12}>{renderSyncPanel()}</Col>
 
             <Modal show={showTemplateModal} onHide={() => setShowTemplateModal(false)} centered>
               <Modal.Header closeButton>

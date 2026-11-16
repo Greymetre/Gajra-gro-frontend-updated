@@ -68,6 +68,8 @@ const ApprovedModal: React.FC<MyVerticallyCenteredModalProps> = ({ approveshow, 
   const [productId, setProductId] = useState<ProductIdOption | null>(null);
   const [description, setDescription] = useState<string>('');
   const [productList, setProductList] = useState<ProductValue[]>([]);
+  // scheme row ticked in the table: only that scheme's points are given on approval
+  const [selectedScheme, setSelectedScheme] = useState<ProductValue | null>(null);
   const [errorShow, setErrorShow] = useState<boolean >(false);
   const [errorPopUpBtnShow, SetErrorPopUpBtnShow] = useState<boolean >(false);
   const [  submitbtndisabled, setSubmitBtnDisabled] = useState<boolean >(false);
@@ -132,14 +134,24 @@ const ApprovedModal: React.FC<MyVerticallyCenteredModalProps> = ({ approveshow, 
       if(paginationData?.search.length > 2)
       fetchTransactions();
     }, [paginationData]);
-  const handleSetValues = (data :any) => {
-    setGGNumber(data?.GgNumber)
+  // Several schemes can list the same product with different points, so the row itself is selected.
+  // Ticking the ticked row again clears it; only one row can be ticked.
+  const handleSetValues = (row: ProductValue) => {
+    if (selectedScheme?._id === row._id) {
+      setSelectedScheme(null)
+      return
+    }
+    setSelectedScheme(row)
+    setGGNumber(row?.GgNumber)
     setProductId({
-      value: data.productid,
-      label: data.product,
+      value: row.productid,
+      label: row.product,
     })
-    handleSelectProduct({  value: data.productid,
-      label: data.product})
+    setOtherProductValue({
+      schemeid: row._id,
+      point: row.points,
+      pointType: row.pointType,
+    })
   }
 
 
@@ -210,6 +222,7 @@ const ApprovedModal: React.FC<MyVerticallyCenteredModalProps> = ({ approveshow, 
           customerid: data?.customerid,
           points: otherProductValue?.point,
           ...(status == "Approved" && { schemeid: otherProductValue?.schemeid }), // Include schemeid only if status is "Approved"
+          ...(status == "Approved" && selectedScheme && { selectedSchemeid: selectedScheme._id }),
           statusType: status,
           remark: description,
           pointType: otherProductValue?.pointType
@@ -232,6 +245,7 @@ const ApprovedModal: React.FC<MyVerticallyCenteredModalProps> = ({ approveshow, 
           point: 0,
           pointType: ""
         });
+        setSelectedScheme(null)
         setErrorShow(true)
         setMessage(res?.data?.message)
         resetSearch()
@@ -302,6 +316,9 @@ const [searchTransaction , setSearchTransaction] = useState('');
   }));
 
   const handleSelectProduct = (selectedOption: ProductIdOption | null) => {
+    if (selectedScheme && selectedScheme.productid !== selectedOption?.value) {
+      setSelectedScheme(null)
+    }
     if (selectedOption) {
       let selectedProduct = productList.find((element) => element.productid === selectedOption.value);
       if (selectedProduct) {
@@ -344,7 +361,7 @@ const [searchTransaction , setSearchTransaction] = useState('');
     <>
     <Modal
       show={approveshow}
-      onHide={() => {setShow() ;  setProductId(null) ; resetSearch() ; SetErrorPopUpBtnShow(false)}}
+      onHide={() => {setShow() ;  setProductId(null) ; setSelectedScheme(null) ; resetSearch() ; SetErrorPopUpBtnShow(false)}}
       size="xl"
       aria-labelledby="contained-modal-title-vcenter"
       centered
@@ -556,6 +573,7 @@ const [searchTransaction , setSearchTransaction] = useState('');
                         <Table>
                           <thead>
                             <tr>
+                              <th>Select</th>
                               <th>GG No.</th>
                               <th>Part No.</th>
                               <th>Points</th>
@@ -568,8 +586,15 @@ const [searchTransaction , setSearchTransaction] = useState('');
                           <tbody>
                             {Array.isArray(productList) && productList.map((item, index) => {
                               return (
-                                <tr key={index} onClick={() => handleSetValues(item)} >
-                                  
+                                <tr key={index} onClick={() => handleSetValues(item)} style={{ cursor: 'pointer' }} className={selectedScheme?._id === item._id ? 'table-active' : ''} >
+                                  <td onClick={(e) => e.stopPropagation()}>
+                                    <Form.Check
+                                      type="checkbox"
+                                      aria-label={`Select ${item.points} points`}
+                                      checked={selectedScheme?._id === item._id}
+                                      onChange={() => handleSetValues(item)}
+                                    />
+                                  </td>
                                   <td>{item.GgNumber}</td>
                                   <td>{item.partNo}</td>
                                   <td>{item.points}</td>
@@ -801,7 +826,12 @@ const [searchTransaction , setSearchTransaction] = useState('');
             </Card>
 
 
-            <div className="d-flex justify-content-end mt-3">
+            <div className="d-flex justify-content-end align-items-center mt-3">
+              {status == "Approved" && selectedScheme ? (
+                <span className="me-3">
+                  Points to be given: <strong>{selectedScheme.points}</strong> ({selectedScheme.pointType})
+                </span>
+              ) : null}
               <Button variant="secondary" onClick={setShow} className="me-2">
                 Cancel
               </Button>

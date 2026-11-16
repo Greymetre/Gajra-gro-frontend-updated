@@ -30,6 +30,10 @@ interface SyncStatus {
   startedAt: string | null
   finishedAt: string | null
   lastApiRowAt: string | null
+  phase: 'account' | 'transfers' | ''
+  transfersTotal: number
+  transfersChecked: number
+  transfersSaved: number
 }
 
 const formatDateTime = (value?: string | null) =>
@@ -192,18 +196,33 @@ const CashfreeReport = () => {
 
   const renderSyncPanel = () => {
     if (!syncStatus) return null
-    const { status, days, daysDone, fetched, inserted, updated, error, finishedAt, startedBy } = syncStatus
+    const { status, days, daysDone, fetched, inserted, updated, error, finishedAt, startedBy, phase } = syncStatus
+    const transfersTotal = syncStatus.transfersTotal || 0
+    const transfersChecked = syncStatus.transfersChecked || 0
+    const transfersSaved = syncStatus.transfersSaved || 0
     const counts = `${fetched.toLocaleString('en-IN')} rows read · ${inserted.toLocaleString('en-IN')} new · ${updated.toLocaleString('en-IN')} updated`
+    const transferCounts = transfersTotal ? ` Transfers: ${transfersSaved.toLocaleString('en-IN')} of ${transfersTotal.toLocaleString('en-IN')} payouts found in Cashfree.` : ''
     if (status === 'running') {
-      const percent = days ? Math.round((daysDone / days) * 100) : 0
+      const inTransfers = phase === 'transfers'
+      const percent = inTransfers
+        ? (transfersTotal ? Math.round((transfersChecked / transfersTotal) * 100) : 100)
+        : (days ? Math.round((daysDone / days) * 100) : 0)
       return (
         <Alert variant="info" className="mb-3">
           <div className="d-flex align-items-center gap-2 mb-2">
             <Spinner animation="border" size="sm" />
-            <strong>Syncing account statement from Cashfree{startedBy === 'auto' ? ' (automatic sync)' : ''}…</strong>
+            <strong>
+              {inTransfers ? 'Step 2 of 2: fetching transfer details of CRM payouts' : `Step 1 of ${startedBy === 'auto' ? 1 : 2}: syncing account statement`}
+              {startedBy === 'auto' ? ' (automatic sync)' : ''}…
+            </strong>
           </div>
           <ProgressBar now={percent} label={`${percent}%`} className="mb-2" />
-          <div className="small">Day {Math.min(daysDone + 1, days)} of {days} · {counts}. You can keep working, this page updates on its own.</div>
+          <div className="small">
+            {inTransfers
+              ? `${transfersChecked.toLocaleString('en-IN')} of ${transfersTotal.toLocaleString('en-IN')} payouts checked · ${transfersSaved.toLocaleString('en-IN')} saved.`
+              : `Day ${Math.min(daysDone + 1, days)} of ${days} · ${counts}.`}{' '}
+            You can keep working, this page updates on its own.
+          </div>
         </Alert>
       )
     }
@@ -211,7 +230,7 @@ const CashfreeReport = () => {
     if (status === 'success') {
       return (
         <Alert variant="success" className="mb-3" dismissible onClose={() => setShowSyncResult(false)}>
-          <strong>Sync complete.</strong> Last {days} days synced at {formatDateTime(finishedAt)}: {counts}.
+          <strong>Sync complete.</strong> Last {days} days synced at {formatDateTime(finishedAt)}. Account statement: {counts}.{transferCounts}
         </Alert>
       )
     }

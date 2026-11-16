@@ -112,7 +112,40 @@ const weekLabel = (value: any) => {
   return parts ? `Week ${Math.floor((parts[2] - 1) / 7) + 1}` : ''
 }
 
-const byAddedOnDesc = (a: Row, b: Row) => str(b['Added On']).localeCompare(str(a['Added On']))
+// Cashfree API times are IST but come as "2026-11-16 18:23:40" or "2026-11-16T18:23:40Z" (the "Z" is not UTC);
+// the dashboard export has "2026-11-16T18:23:40" -> one format
+const isoTime = (value: any) => str(value).replace(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}:\d{2})(?:\.\d+)?Z?$/, '$1T$2')
+const byAddedOnDesc = (a: Row, b: Row) => isoTime(b['Added On']).localeCompare(isoTime(a['Added On']))
+
+// "Debit/Credit" must be DEBIT / CREDIT and "Particulars" PAYOUT_TRANSFER / BANK_TRANSFER, as in the dashboard
+// export. Rows synced before the mapping fix had the two swapped ("CASHFREE TRANSFER" / "DEBIT").
+const PARTICULARS: Record<string, string> = {
+  'CASHFREE TRANSFER': 'PAYOUT_TRANSFER',
+  'PAYOUT TRANSFER': 'PAYOUT_TRANSFER',
+  'ACCOUNT CREDIT': 'BANK_TRANSFER',
+  'BANK TRANSFER': 'BANK_TRANSFER',
+}
+const normaliseParticulars = (value: string) => {
+  const key = value.toUpperCase().replace(/_/g, ' ').trim()
+  return PARTICULARS[key] || key.replace(/\s+/g, '_')
+}
+const normaliseAccountRow = (row: Row): Row => {
+  const a = str(row['Debit/Credit']).toUpperCase()
+  const b = str(row['Particulars']).toUpperCase()
+  const isDc = (v: string) => v === 'DEBIT' || v === 'CREDIT'
+  let debitCredit = a
+  let particulars = b
+  if (isDc(b) && !isDc(a)) {
+    debitCredit = b
+    particulars = a
+  }
+  particulars = particulars ? normaliseParticulars(particulars) : particulars
+  if (!isDc(debitCredit)) debitCredit = particulars === 'BANK_TRANSFER' ? 'CREDIT' : particulars === 'PAYOUT_TRANSFER' ? 'DEBIT' : debitCredit
+  return { ...row, 'Added On': isoTime(row['Added On']), 'Debit/Credit': debitCredit, 'Particulars': particulars }
+}
+
+// Transfer sheet columns as in the manual report (no "Extended UTR"), then the helper columns
+const TRANSFER_EXPORT_HEADERS = TRANSFER_STATEMENT_HEADERS.filter((header) => header !== 'Extended UTR')
 
 // A transfer is counted on the day Cashfree processed it ("Last checked at"), as in the manual report
 const processedOn = (row: Row) => (dateParts(row['Last checked at']) ? row['Last checked at'] : row['Added On'])
@@ -139,8 +172,8 @@ const firstBy = (rows: Row[], key: (row: Row) => string) => {
 }
 
 export function downloadCashfreeReport(account: Row[], transfer: Row[], redemptions: Row[]) {
-  const transfers = [...transfer].sort(byAddedOnDesc)
-  const accounts = [...account].sort(byAddedOnDesc)
+  const transfers = transfer.map((row): Row => ({ ...row, 'Added On': isoTime(row['Added On']), 'Last checked at': isoTime(row['Last checked at']) })).sort(byAddedOnDesc)
+  const accounts = account.map(normaliseAccountRow).sort(byAddedOnDesc)
 
   const crmByUtr = firstBy(redemptions, (row) => str(row.UTR_No))
   // Cashfree Transfer Id is the CRM redemption _id
@@ -163,20 +196,16 @@ export function downloadCashfreeReport(account: Row[], transfer: Row[], redempti
   }
 
   /* ---------- Cashfree Details (transfer statement) ---------- */
-  const statuses = [...TRANSFER_STATUSES]
-  transfers.forEach((row) => {
-    const status = str(row.Status).toUpperCase()
-    if (status && !statuses.includes(status)) statuses.push(status)
-  })
-  const transferAoa: any[][] = statuses.map((status) => [
+  // same four status totals as the manual report, so the header stays on row 5
+  const transferAoa: any[][] = TRANSFER_STATUSES.map((status) => [
     '', '', status,
     transfers.filter((row) => same(row.Status, status)).reduce((sum, row) => sum + num(row.Amount), 0),
   ])
   const transferHeaderRow = transferAoa.length
-  transferAoa.push([...TRANSFER_STATEMENT_HEADERS, 'Date', 'Month', 'Week', 'Mobile', 'In CRM'])
+  transferAoa.push([...TRANSFER_EXPORT_HEADERS, 'Date', 'MONTH-2', 'week', 'MOBILE', 'In CRM'])
   transfers.forEach((row) => {
     transferAoa.push([
-      ...TRANSFER_STATEMENT_HEADERS.map((header) => (header === 'Amount' ? num(row[header]) : row[header] ?? '')),
+      ...TRANSFER_EXPORT_HEADERS.map((header) => (header === 'Amount' ? num(row[header]) : row[header] ?? '')),
       dateSerial(processedOn(row)),
       monthSerial(processedOn(row)),
       weekLabel(processedOn(row)),
@@ -185,12 +214,12 @@ export function downloadCashfreeReport(account: Row[], transfer: Row[], redempti
     ])
   })
   const transferSheet = utils.aoa_to_sheet(transferAoa)
-  const transferDateCol = TRANSFER_STATEMENT_HEADERS.length
+  const transferDateCol = TRANSFER_EXPORT_HEADERS.length
   setColumnFormat(transferSheet, transferDateCol, transferHeaderRow + 1, 'dd-mm-yyyy')
   setColumnFormat(transferSheet, transferDateCol + 1, transferHeaderRow + 1, 'mmm-yy')
-  setColumnWidths(transferSheet, TRANSFER_STATEMENT_HEADERS.length + 5)
+  setColumnWidths(transferSheet, TRANSFER_EXPORT_HEADERS.length + 5)
   transferSheet['!autofilter'] = {
-    ref: utils.encode_range({ s: { r: transferHeaderRow, c: 0 }, e: { r: transferAoa.length - 1, c: TRANSFER_STATEMENT_HEADERS.length + 4 } }),
+    ref: utils.encode_range({ s: { r: transferHeaderRow, c: 0 }, e: { r: transferAoa.length - 1, c: TRANSFER_EXPORT_HEADERS.length + 4 } }),
   }
 
   /* ---------- Cashfree Account Details (account statement) ---------- */

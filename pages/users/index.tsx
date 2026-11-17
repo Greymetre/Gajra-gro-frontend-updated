@@ -1,6 +1,6 @@
 import { number } from 'prop-types'
 import React, { useEffect, useState } from 'react'
-import { Button, Card, Col, Dropdown, Row, Table, Image, Spinner } from 'react-bootstrap'
+import { Badge, Button, Card, Col, Dropdown, Row, Table, Image, Spinner } from 'react-bootstrap'
 import { useDispatch, useSelector } from 'react-redux'
 import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
 import Layout from '../../components/Layout'
@@ -35,6 +35,11 @@ export default function Users() {
     }
   }, {});
   const [activeRequestData, setActiveRequestData] = useState<ActiveUserInterface>({})
+  // active employees first (the API already sorts this way; kept here so the order holds after a status change)
+  const sortedUsers = Array.isArray(userList)
+    ? [...userList].sort((a: any, b: any) => (b.active === true ? 1 : 0) - (a.active === true ? 1 : 0))
+    : []
+  const activeCount = sortedUsers.filter((item: any) => item.active === true).length
   const dispatch = useDispatch();
   const fetchCustomers = async () => {
     await backendGetAllUsers().then((res) => {
@@ -98,7 +103,8 @@ export default function Users() {
         <Col xl={12} md={12} >
           <Row className="align-items-center mb-4">
             <Col md={6}>
-              <h3 className="card-body">User List({Array.isArray(userList) ? userList.length : '0'})</h3>
+              <h3 className="card-body mb-0">User List({sortedUsers.length})</h3>
+              <div className="text-muted small px-3">{activeCount} active · {sortedUsers.length - activeCount} inactive</div>
             </Col>
             <Col md={6} className="text-end mb-3">
             {moduleAccess?.canExport ?
@@ -118,6 +124,7 @@ export default function Users() {
                             <tr>
                               <th>#</th>
                               <th>Full Name</th>
+                              <th>Role</th>
                               <th>Mobile</th>
                               <th>Email</th>
                               <th>Gender</th>
@@ -126,7 +133,7 @@ export default function Users() {
                             </tr>
                           </thead>
                           <tbody>
-                            {Array.isArray(userList) && userList.map((item, index) => {
+                            {sortedUsers.map((item: any, index: number) => {
                               return (
                                 <tr key={index}>
                                   <td>{index + 1}</td>
@@ -135,6 +142,11 @@ export default function Users() {
                                       pathname: '/users/' + item._id,
                                     }}
                                   >{item.firstName + ' ' + item.lastName}</Link></td>
+                                  <td>
+                                    {String(item.userType || '').trim()
+                                      ? <Badge bg="light" text="dark" className="border fw-semibold">{String(item.userType).trim()}</Badge>
+                                      : <span className="text-muted small">No role</span>}
+                                  </td>
                                   <td>{item.phoneCode + item.mobile}</td>
                                   <td>{item.email}</td>
                                   <td>{item.gender}</td>

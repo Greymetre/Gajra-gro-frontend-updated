@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Alert, Badge, Button, Col, Form, InputGroup, Row, Spinner, Table } from "react-bootstrap";
 import { CheckLg, PersonPlus, Search, ShieldLock, Trash } from "react-bootstrap-icons";
 import { useDispatch, useSelector } from "react-redux";
-import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
 import {
     backendGetPermissions,
@@ -217,12 +216,6 @@ export default function SettingPermission() {
 
     return (
         <Layout>
-            <BreadcrumbComponent
-                firstItem={{ href: "/dashboard", label: "dashboard" }}
-                secondItem={{ href: "/setting", label: "Setting" }}
-                itemlabel="Permission"
-            />
-
             <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
                 <div>
                     <h3 className="mb-1">Roles &amp; Permissions</h3>

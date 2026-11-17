@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Alert, Button, Card, Col, Form, Image, Modal, ProgressBar, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
-import { ArrowRepeat, Download, Upload } from 'react-bootstrap-icons'
+import { Alert, Badge, Button, Col, Form, Image, Modal, ProgressBar, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
+import { ArrowClockwise, ArrowDownLeft, ArrowRepeat, ArrowUpRight, Database, Download, Upload, Wallet2 } from 'react-bootstrap-icons'
 import { utils, writeFile } from 'xlsx'
 import * as XLSX from 'xlsx'
 import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
@@ -12,6 +12,7 @@ import {
   backendImportCashfreeStatement,
   backendSyncCashfreeAccountStatement,
   backendGetCashfreeSyncStatus,
+  backendGetCashfreeSummary,
 } from '../../helpers/backend_helper'
 import { EXCEL_DEMO_IMAGE, IMAGE_URL } from '../../utils/constant'
 import { ACCOUNT_STATEMENT_HEADERS, TRANSFER_STATEMENT_HEADERS, downloadCashfreeReport } from '../../utils/cashfreeReport'
@@ -39,6 +40,43 @@ interface SyncStatus {
 const formatDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'
 type StatementType = 'ACCOUNT' | 'TRANSFER'
+
+interface CashfreeSummary {
+  live: { balance: number; availableBalance: number; at: string } | null
+  liveError: string
+  statementBalance: number | null
+  statementBalanceAt: string | null
+  today: { date: string; payouts: number; payoutAmount: number; topups: number; topupAmount: number }
+  accountRows: number
+  transferRows: number
+}
+
+const AMOUNT_COLUMNS = [
+  'Charged Amount (INR)', 'Amount (INR)', 'Service Charge (INR)', 'Service Tax (INR)', 'Closing Balance (INR)',
+  'Amount', 'Service Charge', 'Service Tax',
+]
+
+const formatAmount = (value: any) => {
+  const number = Number(String(value ?? '').replace(/,/g, ''))
+  return Number.isFinite(number)
+    ? number.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    : String(value ?? '')
+}
+
+// Statement times are IST text like "2026-11-17T11:07:56"; show them as "17 Nov 2026, 11:07:56"
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const formatStatementTime = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)/.exec(value || '')
+  return match ? `${match[3]} ${MONTHS[Number(match[2]) - 1] || match[2]} ${match[1]}, ${match[4]}` : value
+}
+
+const statusTone = (status: string) => {
+  const upper = status.toUpperCase()
+  if (upper === 'SUCCESS') return 'success'
+  if (['FAILED', 'REJECTED', 'ERROR'].includes(upper)) return 'danger'
+  if (upper === 'REVERSED') return 'warning'
+  return 'secondary'
+}
 
 const STATEMENTS: Record<StatementType, { label: string; headers: string[]; fileName: string }> = {
   ACCOUNT: { label: 'Account Statement', headers: ACCOUNT_STATEMENT_HEADERS, fileName: 'cashfreeAccountStatement' },
@@ -92,6 +130,22 @@ const CashfreeReport = () => {
   const isSyncRunning = syncStatus?.status === 'running'
   // set when the API refuses access (no reports.cashfree permission)
   const [accessDenied, setAccessDenied] = useState(false)
+  const [summary, setSummary] = useState<CashfreeSummary | null>(null)
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false)
+
+  const loadSummary = async (refresh = false) => {
+    setIsSummaryLoading(true)
+    try {
+      const res = await backendGetCashfreeSummary(refresh)
+      if (!res?.isError && res?.data) setSummary(res.data)
+    } catch (error: any) {
+      if (error?.response?.status === 403) setAccessDenied(true)
+    } finally {
+      setIsSummaryLoading(false)
+    }
+  }
+
+  useEffect(() => { loadSummary() }, [])
 
   const fetchStatements = async (statementType: StatementType, page: number) => {
     setIsLoading(true)
@@ -150,6 +204,7 @@ const CashfreeReport = () => {
       if (!status) return
       // a run just finished: show the new rows
       if (lastSyncStateRef.current === 'running' && status.status !== 'running') {
+        loadSummary()
         if (activeTabRef.current === 'ACCOUNT') {
           fetchStatements('ACCOUNT', 1)
         } else {
@@ -287,6 +342,7 @@ const CashfreeReport = () => {
       }
       alert(`${label} imported.\nNew: ${inserted}\nUpdated: ${updated}\nSkipped (no id): ${skipped}`)
       setShowImportModal(false)
+      loadSummary()
       if (importType === activeTab) {
         fetchStatements(importType, 1)
       } else {
@@ -303,47 +359,145 @@ const CashfreeReport = () => {
     }
   }
 
+  const renderCell = (statementType: StatementType, header: string, value: any) => {
+    const text = String(value ?? '')
+    if (header === 'Added On' || header === 'Last checked at') {
+      return <td key={header} className="text-nowrap">{formatStatementTime(text)}</td>
+    }
+    if (header === 'Debit/Credit') {
+      const upper = text.toUpperCase()
+      return (
+        <td key={header}>
+          {upper ? <Badge bg={upper === 'CREDIT' ? 'success' : 'danger'} className="cf-badge">{upper}</Badge> : null}
+        </td>
+      )
+    }
+    if (statementType === 'TRANSFER' && header === 'Status') {
+      return <td key={header}>{text ? <Badge bg={statusTone(text)} className="cf-badge">{text}</Badge> : null}</td>
+    }
+    if (AMOUNT_COLUMNS.includes(header)) {
+      return <td key={header} className="text-end text-nowrap cf-amount">{text === '' ? '' : formatAmount(text)}</td>
+    }
+    return <td key={header} className="text-nowrap">{text}</td>
+  }
+
   const renderList = (statementType: StatementType) => {
     const { headers } = STATEMENTS[statementType]
     const list = lists[statementType]
+    const page = list.page || 1
+    const from = list.totalDocs ? (page - 1) * PAGE_LIMIT + 1 : 0
+    const to = Math.min(page * PAGE_LIMIT, list.totalDocs || 0)
     return (
       <>
-        <div className="mb-2">
+        <div className="cf-table-wrap">
+          <Table hover className="mb-0 cf-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                {headers.map((header) => (
+                  <th key={header} className={`text-nowrap ${AMOUNT_COLUMNS.includes(header) ? 'text-end' : ''}`}>{header}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={headers.length + 1} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+              ) : list.docs.length ? (
+                list.docs.map((row, index) => (
+                  <tr key={index}>
+                    <td className="text-muted">{from + index}</td>
+                    {headers.map((header) => renderCell(statementType, header, row?.[header]))}
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={headers.length + 1} className="text-center py-5 text-muted">No data found. Use Sync from Cashfree or Import.</td></tr>
+              )}
+            </tbody>
+          </Table>
+        </div>
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+          <small className="text-muted">
+            Showing {from.toLocaleString('en-IN')}–{to.toLocaleString('en-IN')} of {(list.totalDocs || 0).toLocaleString('en-IN')}
+          </small>
           <PaginationNav
-            align="start"
-            currentPage={list.page || 1}
+            align="end"
+            currentPage={page}
             totalPages={list.totalPages}
             disabled={isLoading}
-            onPageChange={(page) => fetchStatements(statementType, page)}
+            onPageChange={(nextPage) => fetchStatements(statementType, nextPage)}
           />
         </div>
-        <Card className="flat-card p-0">
-          <div className="table-responsive">
-            <Table className="table table-hover mb-0">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  {headers.map((header) => <th key={header} className="text-nowrap">{header}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr><td colSpan={headers.length + 1} className="text-center"><Spinner animation="border" size="sm" /></td></tr>
-                ) : list.docs.length ? (
-                  list.docs.map((row, index) => (
-                    <tr key={index}>
-                      <td>{((list.page || 1) - 1) * PAGE_LIMIT + index + 1}</td>
-                      {headers.map((header) => <td key={header} className="text-nowrap">{String(row?.[header] ?? '')}</td>)}
-                    </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan={headers.length + 1} className="text-center">No data found</td></tr>
-                )}
-              </tbody>
-            </Table>
-          </div>
-        </Card>
       </>
+    )
+  }
+
+  const renderBalanceCards = () => {
+    const live = summary?.live
+    const balance = live ? live.availableBalance : summary?.statementBalance
+    const today = summary?.today
+    return (
+      <Row className="g-3 mb-4">
+        <Col xl={4} md={6} xs={12}>
+          <div className="cd-stat cd-stat-green cf-wallet">
+            <div className="cd-stat-icon"><Wallet2 size={22} color="#22a55b" /></div>
+            <div className="flex-grow-1 min-w-0">
+              <div className="cd-stat-label d-flex align-items-center justify-content-between">
+                <span>Cashfree Wallet Balance</span>
+                <Button
+                  variant="link"
+                  size="sm"
+                  className="p-0 text-muted"
+                  title="Refresh balance"
+                  disabled={isSummaryLoading}
+                  onClick={() => loadSummary(true)}
+                >
+                  {isSummaryLoading ? <Spinner animation="border" size="sm" /> : <ArrowClockwise />}
+                </Button>
+              </div>
+              <div className="cd-stat-value">
+                {balance === null || balance === undefined ? (isSummaryLoading ? '…' : '-') : `₹ ${formatAmount(balance)}`}
+              </div>
+              <div className="cf-stat-note">
+                {live
+                  ? <>Live from Cashfree · {formatDateTime(live.at)}{live.balance !== live.availableBalance ? ` · Ledger ₹ ${formatAmount(live.balance)}` : ''}</>
+                  : summary
+                    ? <span className="text-warning-emphasis">{summary.liveError || 'Live balance not available'}{summary.statementBalanceAt ? ` · showing last statement balance (${formatStatementTime(summary.statementBalanceAt)})` : ''}</span>
+                    : 'Loading…'}
+              </div>
+            </div>
+          </div>
+        </Col>
+        <Col xl={3} md={6} xs={12}>
+          <div className="cd-stat cd-stat-red">
+            <div className="cd-stat-icon"><ArrowUpRight size={22} color="#d92d20" /></div>
+            <div>
+              <div className="cd-stat-label">Today's Payouts</div>
+              <div className="cd-stat-value">₹ {formatAmount(today?.payoutAmount || 0)}</div>
+              <div className="cf-stat-note">{(today?.payouts || 0).toLocaleString('en-IN')} payouts (as of last sync)</div>
+            </div>
+          </div>
+        </Col>
+        <Col xl={2} md={6} xs={12}>
+          <div className="cd-stat cd-stat-amber">
+            <div className="cd-stat-icon"><ArrowDownLeft size={22} color="#b98900" /></div>
+            <div>
+              <div className="cd-stat-label">Today's Top-ups</div>
+              <div className="cd-stat-value">₹ {formatAmount(today?.topupAmount || 0)}</div>
+              <div className="cf-stat-note">{(today?.topups || 0).toLocaleString('en-IN')} credits</div>
+            </div>
+          </div>
+        </Col>
+        <Col xl={3} md={6} xs={12}>
+          <div className="cd-stat cd-stat-blue">
+            <div className="cd-stat-icon"><Database size={20} color="#2e6be6" /></div>
+            <div>
+              <div className="cd-stat-label">Records in CRM</div>
+              <div className="cd-stat-value">{(summary?.accountRows ?? 0).toLocaleString('en-IN')}</div>
+              <div className="cf-stat-note">Account rows · {(summary?.transferRows ?? 0).toLocaleString('en-IN')} transfer rows</div>
+            </div>
+          </div>
+        </Col>
+      </Row>
     )
   }
 
@@ -360,98 +514,92 @@ const CashfreeReport = () => {
   return (
     <Layout>
       <BreadcrumbComponent firstItem={{ href: '/dashboard', label: 'Home' }} secondItem={{ href: '', label: '' }} itemlabel='Cashfree Report' />
-      <Row>
-        <Col xl={12} md={12}>
-          <Row className="align-items-center mb-4">
-            <Col xs={12} className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-              <h3 className="mb-0">
-                Cashfree Report ({(lists[activeTab].totalDocs ?? 0).toLocaleString('en-IN')})
-              </h3>
-              <div className="d-flex flex-wrap align-items-center justify-content-end gap-2">
-                <div className="d-flex flex-column align-items-end">
-                  <Button onClick={handleSyncAccount} variant="dark" disabled={isSyncRunning || isStartingSync}>
-                    {isSyncRunning || isStartingSync ? <Spinner animation="border" size="sm" /> : <ArrowRepeat />}{' '}
-                    {isSyncRunning ? 'Syncing…' : 'Sync from Cashfree'}
-                  </Button>
-                  <small className="text-muted mt-1">
-                    Last synced: {formatDateTime(syncStatus?.status === 'success' ? syncStatus.finishedAt : syncStatus?.lastApiRowAt)} · auto every 30 min
-                  </small>
-                </div>
-                <Button onClick={() => setShowTemplateModal(true)} variant="outline-light">
-                  <Download /> Template
-                </Button>
-                <Button onClick={openImportModal} variant="outline-light">
-                  <Upload /> Import
-                </Button>
-                <Button onClick={handleOnExport} variant="outline-light" disabled={isExporting}>
-                  {isExporting ? <Spinner animation="border" size="sm" /> : <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} />} Export
-                </Button>
-              </div>
-            </Col>
 
-            <Col xs={12}>{renderSyncPanel()}</Col>
+      <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+          <h3 className="mb-1">Cashfree Report</h3>
+          <div className="text-muted small">
+            Payouts account statement and transfers · Last synced {formatDateTime(syncStatus?.status === 'success' ? syncStatus.finishedAt : syncStatus?.lastApiRowAt)} · auto every 30 min
+          </div>
+        </div>
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <Button onClick={handleSyncAccount} variant="dark" className="cd-btn" disabled={isSyncRunning || isStartingSync}>
+            {isSyncRunning || isStartingSync ? <Spinner animation="border" size="sm" /> : <ArrowRepeat />}{' '}
+            {isSyncRunning ? 'Syncing…' : 'Sync from Cashfree'}
+          </Button>
+          <Button onClick={() => setShowTemplateModal(true)} className="cd-btn cd-btn-outline">
+            <Download /> Template
+          </Button>
+          <Button onClick={openImportModal} className="cd-btn cd-btn-outline">
+            <Upload /> Import
+          </Button>
+          <Button onClick={handleOnExport} className="cd-btn cd-btn-outline" disabled={isExporting}>
+            {isExporting ? <Spinner animation="border" size="sm" /> : <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} />} Export
+          </Button>
+        </div>
+      </div>
 
-            <Modal show={showTemplateModal} onHide={() => setShowTemplateModal(false)} centered>
-              <Modal.Header closeButton>
-                <Modal.Title>Download Template</Modal.Title>
-              </Modal.Header>
-              <Modal.Body className="d-grid gap-2">
-                <Button variant="dark" onClick={() => downloadTemplate('ACCOUNT')}>
-                  <Download /> Account Statement Template
-                </Button>
-                <Button variant="outline-dark" onClick={() => downloadTemplate('TRANSFER')}>
-                  <Download /> Transfer Statement Template
-                </Button>
-              </Modal.Body>
-            </Modal>
+      {renderBalanceCards()}
+      {renderSyncPanel()}
 
-            <Modal show={showImportModal} onHide={() => !isImporting && setShowImportModal(false)} centered>
-              <Modal.Header closeButton={!isImporting}>
-                <Modal.Title>Import Statement</Modal.Title>
-              </Modal.Header>
-              <Modal.Body>
-                <Form.Label>Statement Type</Form.Label>
-                <div className="d-grid gap-2 mb-3">
-                  {(Object.keys(STATEMENTS) as StatementType[]).map((type) => (
-                    <Button
-                      key={type}
-                      variant={importType === type ? 'dark' : 'outline-dark'}
-                      disabled={isImporting}
-                      onClick={() => setImportType(type)}
-                    >
-                      {STATEMENTS[type].label}
-                    </Button>
-                  ))}
-                </div>
-                <Form.Label>File (.xlsx)</Form.Label>
-                <Form.Control
-                  type="file"
-                  accept=".xlsx"
-                  disabled={isImporting}
-                  onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(event.target.files?.[0] ?? null)}
-                />
-                {importProgress ? <div className="mt-2 small">{importProgress}</div> : null}
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="dark" onClick={handleImport} disabled={isImporting || !selectedFile}>
-                  {isImporting ? <Spinner animation="border" size="sm" /> : null} Import {STATEMENTS[importType].label}
-                </Button>
-              </Modal.Footer>
-            </Modal>
+      <Modal show={showTemplateModal} onHide={() => setShowTemplateModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Download Template</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="d-grid gap-2">
+          <Button variant="dark" onClick={() => downloadTemplate('ACCOUNT')}>
+            <Download /> Account Statement Template
+          </Button>
+          <Button variant="outline-dark" onClick={() => downloadTemplate('TRANSFER')}>
+            <Download /> Transfer Statement Template
+          </Button>
+        </Modal.Body>
+      </Modal>
 
-            <Col xs={12}>
-              <Tabs activeKey={activeTab} onSelect={(key) => key && setActiveTab(key as StatementType)} className="mb-3">
-                <Tab eventKey="ACCOUNT" title="Account Statement List">
-                  {activeTab === 'ACCOUNT' ? renderList('ACCOUNT') : null}
-                </Tab>
-                <Tab eventKey="TRANSFER" title="Transfer Statement List">
-                  {activeTab === 'TRANSFER' ? renderList('TRANSFER') : null}
-                </Tab>
-              </Tabs>
-            </Col>
-          </Row>
-        </Col>
-      </Row>
+      <Modal show={showImportModal} onHide={() => !isImporting && setShowImportModal(false)} centered>
+        <Modal.Header closeButton={!isImporting}>
+          <Modal.Title>Import Statement</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Label>Statement Type</Form.Label>
+          <div className="d-grid gap-2 mb-3">
+            {(Object.keys(STATEMENTS) as StatementType[]).map((type) => (
+              <Button
+                key={type}
+                variant={importType === type ? 'dark' : 'outline-dark'}
+                disabled={isImporting}
+                onClick={() => setImportType(type)}
+              >
+                {STATEMENTS[type].label}
+              </Button>
+            ))}
+          </div>
+          <Form.Label>File (.xlsx)</Form.Label>
+          <Form.Control
+            type="file"
+            accept=".xlsx"
+            disabled={isImporting}
+            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setSelectedFile(event.target.files?.[0] ?? null)}
+          />
+          {importProgress ? <div className="mt-2 small">{importProgress}</div> : null}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="dark" onClick={handleImport} disabled={isImporting || !selectedFile}>
+            {isImporting ? <Spinner animation="border" size="sm" /> : null} Import {STATEMENTS[importType].label}
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      <div className="cd-tabs-card">
+        <Tabs activeKey={activeTab} onSelect={(key) => key && setActiveTab(key as StatementType)} className="cd-tabs">
+          <Tab eventKey="ACCOUNT" title={`Account Statement (${(summary?.accountRows ?? lists.ACCOUNT.totalDocs ?? 0).toLocaleString('en-IN')})`}>
+            {activeTab === 'ACCOUNT' ? renderList('ACCOUNT') : null}
+          </Tab>
+          <Tab eventKey="TRANSFER" title={`Transfer Statement (${(summary?.transferRows ?? lists.TRANSFER.totalDocs ?? 0).toLocaleString('en-IN')})`}>
+            {activeTab === 'TRANSFER' ? renderList('TRANSFER') : null}
+          </Tab>
+        </Tabs>
+      </div>
     </Layout>
   )
 }

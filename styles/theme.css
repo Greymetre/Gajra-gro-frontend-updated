@@ -4980,3 +4980,16 @@ color:black !important;
 .kyc-confirm-modal {
   z-index: 1065;
 }
+
+/* Cashfree report page */
+.cf-stat-note { font-size: 12px; color: #667085; margin-top: 2px; }
+.cf-wallet .cd-stat-value { font-size: 28px; }
+.cf-table-wrap { max-height: 62vh; overflow: auto; border: 1px solid #eceef2; border-radius: 12px; }
+.cf-table { font-size: 13px; }
+.cf-table thead th { position: sticky; top: 0; z-index: 1; background: #f8f9fb; color: #475467; font-weight: 600;
+  font-size: 12px; text-transform: uppercase; letter-spacing: .02em; border-bottom: 1px solid #eceef2; padding: 10px 12px; }
+.cf-table tbody td { padding: 10px 12px; vertical-align: middle; border-color: #f2f4f7; }
+.cf-amount { font-variant-numeric: tabular-nums; }
+.cf-badge { font-weight: 600; font-size: 11px; letter-spacing: .02em; }
+.min-w-0 { min-width: 0; }
+      

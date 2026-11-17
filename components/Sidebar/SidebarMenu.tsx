@@ -7,9 +7,8 @@ import Image from 'next/image'
 import {ShopWindow, Speedometer2, CurrencyDollar, BagCheckFill, AwardFill,
   GiftFill, QrCodeScan, GearWideConnected, GridFill, Dice4Fill, GearFill,
   ClipboardCheckFill, Clipboard2DataFill, PeopleFill, Headset, Tools,
-  PersonCheckFill, GeoAltFill ,FileEarmarkExcel, MegaphoneFill
+  PersonCheckFill, GeoAltFill ,FileEarmarkExcel, MegaphoneFill, ChevronDown
 } from 'react-bootstrap-icons'
-import vectormenu from '../../assets/images/auth/Vectormenu.svg'
 import { backendGetUserPermissions } from '../../helpers/backend_helper'
 import { SidebarManuInterface } from '../../interfaces/setting.interface'
 import { useDispatch, useSelector } from 'react-redux'
@@ -60,6 +59,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
 
   const manus = [
     {
+      group: 'Operations',
       label: 'Dashboard',
       href: '/dashboard',
       icon: <Speedometer2 />,
@@ -67,6 +67,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "dashboard.read"
     },
     {
+      group: 'Operations',
       label: 'Customers',
       href: '/customer',
       icon: <ShopWindow />,
@@ -74,6 +75,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "customers.read"
     },
     {
+      group: 'Operations',
       label: 'Transaction',
       href: '/transaction',
       icon: <CurrencyDollar/>,
@@ -81,6 +83,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "transactions.read"
     },
     {
+      group: 'Operations',
       label: 'Redemption',
       href: '/redemption',
       icon: <BagCheckFill/>,
@@ -88,6 +91,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "redemptions.read"
     },
     {
+      group: 'Operations',
       label: 'Loyalty Scheme',
       href: '/loyaltyscheme',
       icon: <AwardFill/>,
@@ -95,12 +99,14 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "loyaltyscheme.read"
     },
     {
+      group: 'Operations',
       label: 'Gifts', href: '/gifts',
       icon: <GiftFill/>,
       submanus: [],
       canAccess : "gift.read"
     },
     {
+      group: 'Operations',
       label: 'QRcode',
       href: '/coupons',
       icon: <QrCodeScan/>,
@@ -109,6 +115,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
     },
 
     {
+      group: 'Operations',
       label: 'Damage QR Entries',
       href: '/damageentries',
       icon: <FileEarmarkExcel/>,
@@ -117,6 +124,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
     },
 
     {
+      group: 'Catalog',
       label: 'Products',
       href: '/products',
       icon: <GearWideConnected/>,
@@ -140,6 +148,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "products.read"
     },
     {
+      group: 'Reports',
       label: 'Reports', href: '/reports',
       icon: <ClipboardCheckFill/>,
       submanus: [{
@@ -159,6 +168,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "reports.read"
     },
     {
+      group: 'Reports',
       label: 'News Management',
       href: '/notifications',
       icon: <MegaphoneFill/>,
@@ -166,12 +176,14 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "news.read"
     },
     {
+      group: 'Administration',
       label: 'Users', href: '/users',
       icon: <PeopleFill/>,
       submanus: [],
       canAccess : "users.read"
     },
     {
+      group: 'Administration',
       label: 'CallSummary',
       href: '/callsummary',
       icon: <Headset/>,
@@ -179,6 +191,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "callsummary.read"
     },
     {
+      group: 'Administration',
       label: 'Settings',
       href: '/setting',
       icon: <Tools/>,
@@ -186,6 +199,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "setting.read"
     },
     {
+      group: 'Administration',
       label: 'Permission',
       href: '/permission',
       icon: <PersonCheckFill/>,
@@ -193,6 +207,7 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
       canAccess : "permission.read"
     },
     {
+      group: 'Administration',
       label: 'Address',
       href: '/address',
       icon: <GeoAltFill/>,
@@ -201,50 +216,77 @@ export default function SidebarMenu({ icon }: { icon: boolean }) {
     },
   ]
   
+  const pathname = router.pathname || ''
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/')
+  const allowed = (key: string) => Array.isArray(permissionData) && key !== '' && permissionData.includes(key)
+
+  // menu items the user may see, with only their allowed sub items
+  const visible = manus
+    .filter((item: any) => allowed(item.canAccess))
+    .map((item: any) => ({ ...item, submanus: (item.submanus || []).filter((sub: any) => allowed(sub.canAccess)) }))
+
+  // a group with sub items opens by itself when one of its pages is open
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
+  const isOpen = (item: any) =>
+    openMenus[item.label] ?? item.submanus.some((sub: any) => isActive(sub.href))
+  const toggle = (item: any) => setOpenMenus((prev) => ({ ...prev, [item.label]: !isOpen(item) }))
+
+  const groupOrder: string[] = []
+  visible.forEach((item: any) => { if (!groupOrder.includes(item.group)) groupOrder.push(item.group) })
+
   return (
     <>
       {errorMessage && <li className="pc-item" role="alert">{errorMessage}</li>}
-      {manus.map((item : SidebarManuInterface, index:number) => {
-        if(Array.isArray(permissionData) && item.canAccess !== '' && permissionData.includes(item.canAccess)) {
-        return <Nav.Item
-          as="li"
-          className="pc-item pc-hasmenu"
-          style={{ width: '100%' }}
-          key={index}
-        >
-          <Link className="pc-link " href={item.href}>
-            <span className="pc-micon">{item.icon}</span>
-            <span className="pc-mtext">{item.label}</span>
-            {Array.isArray(item.submanus) && item.submanus.length > 0 ? (
-              <span className="pc-arrow">
-                <Image src={vectormenu} alt="" />
-              </span>
-            ) : (
-              ''
-            )}
-          </Link>
-          {Array.isArray(item.submanus) && item.submanus.length > 0 ? (
-            <ul className="pc-submenu">
-              {Array.isArray(item.submanus) &&
-                item.submanus.map((manu :any, mindex:number) => {
-                  if(Array.isArray(permissionData) && manu.canAccess !== '' && permissionData.includes(manu.canAccess)) {
-                  return (
-                    <li className="pc-item" key={'menu' + mindex}>
-                      <Link className="pc-link " href={manu.href}>
-                      <span className="pc-micon">{manu.icon}</span>
-                        <span className="pc-mtext">{manu.label}</span>
-                      </Link>
-                    </li>
-                  )
-                  }
-                })}
-            </ul>
-          ) : (
-            ''
-          )}
-        </Nav.Item>
-        }
-      })}
+      {groupOrder.map((group) => (
+        <React.Fragment key={group}>
+          <li className="pc-caption sb-caption"><label>{group}</label></li>
+          {visible.filter((item: any) => item.group === group).map((item: any) => {
+            const hasSub = item.submanus.length > 0
+            const open = hasSub && isOpen(item)
+            const childActive = hasSub && item.submanus.some((sub: any) => isActive(sub.href))
+            return (
+              <Nav.Item
+                as="li"
+                className={`pc-item sb-item ${hasSub ? 'pc-hasmenu' : ''} ${open ? 'pc-trigger' : ''} ${!hasSub && isActive(item.href) ? 'active' : ''} ${childActive ? 'sb-child-active' : ''}`}
+                style={{ width: '100%' }}
+                key={item.label}
+              >
+                {hasSub ? (
+                  <a
+                    className="pc-link sb-link"
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={open}
+                    onClick={() => toggle(item)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(item) } }}
+                  >
+                    <span className="pc-micon">{item.icon}</span>
+                    <span className="pc-mtext">{item.label}</span>
+                    <span className="pc-arrow sb-arrow"><ChevronDown /></span>
+                  </a>
+                ) : (
+                  <Link className="pc-link sb-link" href={item.href} aria-current={isActive(item.href) ? 'page' : undefined}>
+                    <span className="pc-micon">{item.icon}</span>
+                    <span className="pc-mtext">{item.label}</span>
+                  </Link>
+                )}
+                {hasSub ? (
+                  <ul className="pc-submenu sb-submenu">
+                    {item.submanus.map((manu: any) => (
+                      <li className={`pc-item ${isActive(manu.href) ? 'active' : ''}`} key={manu.label}>
+                        <Link className="pc-link sb-link" href={manu.href} aria-current={isActive(manu.href) ? 'page' : undefined}>
+                          <span className="pc-micon">{manu.icon}</span>
+                          <span className="pc-mtext">{manu.label}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </Nav.Item>
+            )
+          })}
+        </React.Fragment>
+      ))}
     </>
   )
 }

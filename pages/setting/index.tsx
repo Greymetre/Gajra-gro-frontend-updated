@@ -10,9 +10,10 @@ import {
   FormLabel,
   Image,
   InputGroup,
+  Alert,
+  Spinner,
 } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
-import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
 import {
   initialSettingData,
@@ -48,8 +49,7 @@ import {
   useFormikContext,
 } from "formik";
 import * as yup from "yup";
-import Redemption from "../redemption";
-import { PlusCircleFill, XCircleFill, Upload } from "react-bootstrap-icons";
+import { PlusCircleFill, XCircleFill, Upload, CheckLg } from "react-bootstrap-icons";
 import { Tooltip as ReactTooltip } from "react-tooltip";
 
 
@@ -65,15 +65,27 @@ export default function Setting() {
 
     try {
       addremark(iData).then(async (response) => {
-        console.warn("result", response);
-        Router.push("/customer");
-      });
+        if (response?.isError) {
+          showStatus("danger", response.message || "Remark could not be saved.");
+        } else {
+          showStatus("success", "Remark saved.");
+          setData("");
+        }
+      }).catch((error: any) => showStatus("danger", error?.response?.data?.message || "Remark could not be saved."));
     } catch (e) {
       console.log(e, "Error in the Login");
     }
   };
 
   const [imageFile, setImageFile] = useState<File | undefined>();
+  // one message line at the top of the page for save / upload / remark results
+  const [status, setStatus] = useState<{ type: "success" | "danger" | "info"; text: string } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const showStatus = (type: "success" | "danger" | "info", text: string) => {
+    setStatus({ type, text });
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
    const [fileName, setFileName] = useState<string | null>(null);  // Store the file name
 
@@ -100,11 +112,17 @@ export default function Setting() {
   };
   const handleFormSubmit = async () => {
     try {
+      setIsSaving(true);
       backendPostAddsetting(formik.values).then(async (response: any) => {
         if (!response.isError) {
-          Router.push("/setting");
+          showStatus("success", "Settings saved.");
+          fetchSetting();
+        } else {
+          showStatus("danger", response.message || "Settings could not be saved.");
         }
-      });
+      }).catch((error: any) => {
+        showStatus("danger", error?.response?.data?.message || "Settings could not be saved.");
+      }).finally(() => setIsSaving(false));
     } catch (e) {
       console.log(e, "Error in the Login");
     }
@@ -116,10 +134,13 @@ export default function Setting() {
         backendRemoveBanerImage({ image: image }).then(
           async (response) => {
             if (!response.isError) {
-              Router.push("/setting");
+              showStatus("success", "Banner removed.");
+              fetchSetting();
+            } else {
+              showStatus("danger", response.message || "Banner could not be removed.");
             }
           },
-          (error) => {}
+          (error) => showStatus("danger", error?.response?.data?.message || "Banner could not be removed.")
         );
       }
     } catch (e) {
@@ -132,14 +153,19 @@ export default function Setting() {
       const formData = new FormData();
       if (imageFile) {
         await formData.append("image", imageFile);
+        setIsUploading(true);
         backendUploadBannerImages(formData).then(
           async (response) => {
             if (!response.isError) {
-              Router.push("/setting");
+              showStatus("success", "Banner uploaded.");
+              setImageFile(undefined);
+              fetchSetting();
+            } else {
+              showStatus("danger", response.message || "Banner could not be uploaded.");
             }
           },
-          (error) => {}
-        );
+          (error) => showStatus("danger", error?.response?.data?.message || "Banner could not be uploaded.")
+        ).finally(() => setIsUploading(false));
       }
     } catch (e) {
       console.log(e, "Error in this image");
@@ -193,7 +219,9 @@ export default function Setting() {
         console.log(response);
 
         if (!response.isError) {
-          alert("Youtube Shorts Updated Successfully");
+          showStatus("success", "Reel links saved.");
+        } else {
+          showStatus("danger", response.message || "Reel links could not be saved.");
         }
       } catch (error) {
         console.log(error);
@@ -220,101 +248,93 @@ export default function Setting() {
 
   
 
+  const SECTIONS = [
+    { id: "st-banners", label: "App Banners" },
+    { id: "st-customer", label: "Customer Types" },
+    { id: "st-loyalty", label: "Loyalty Scheme" },
+    { id: "st-redemption", label: "Redemption" },
+    { id: "st-login", label: "Login" },
+    { id: "st-points", label: "Points" },
+    { id: "st-reels", label: "Reel Links" },
+    { id: "st-app", label: "Mobile App" },
+    { id: "st-helpdesk", label: "Helpdesk" },
+    { id: "st-social", label: "Social Media" },
+    { id: "st-catalogue", label: "Catalogue" },
+    { id: "st-gift", label: "Gift" },
+    { id: "st-callcenter", label: "Call Center" },
+    { id: "st-remark", label: "Remarks" },
+  ];
+  const [activeSection, setActiveSection] = useState(SECTIONS[0].id);
+  const goTo = (id: string) => {
+    setActiveSection(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <Layout>
-      <BreadcrumbComponent
-        firstItem={{ href: "/dashboard", label: "dashboard" }}
-        secondItem={{ href: "/setting", label: "Setting" }}
-        itemlabel="Setting"
-      />
-      <Row>
-        <Col xl={12} md={12}>
-          <Row className="align-items-center mb-4">
-            <Col md={6} className="mb-3">
-              <h3 className="card-body mb-0"> Setting</h3>
-            </Col>
-            <Card className="flat-card">
+      <div className="st-header d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <div>
+          <h3 className="mb-1">Settings</h3>
+          <div className="text-muted small">App, loyalty, redemption and contact settings. Save applies every section except Reel Links and Remarks, which have their own buttons.</div>
+        </div>
+        {moduleAccess?.canUpdate ? (
+          <Button
+            variant="dark"
+            className="cd-btn"
+            disabled={!formik.isValid || isSaving}
+            onClick={() => {
+              if (formik.isValid) formik.handleSubmit();
+              else showStatus("danger", "Some fields are not valid. Please check them and try again.");
+            }}
+          >
+            {isSaving ? <Spinner animation="border" size="sm" /> : <CheckLg />} Save Settings
+          </Button>
+        ) : null}
+      </div>
+      {status ? (
+        <Alert variant={status.type} dismissible onClose={() => setStatus(null)}>{status.text}</Alert>
+      ) : null}
+
+      <Row className="g-3">
+        <Col lg={3} className="d-none d-lg-block">
+          <div className="st-nav">
+            {SECTIONS.map((section) => (
+              <button
+                type="button"
+                key={section.id}
+                className={`st-nav-item ${activeSection === section.id ? "active" : ""}`}
+                onClick={() => goTo(section.id)}
+              >
+                {section.label}
+              </button>
+            ))}
+          </div>
+        </Col>
+        <Col lg={9}>
+            <Card className="flat-card st-body">
               <Form>
-                <Row>
-                  <Col xl={7} md={7}>
-                    <Row className="align-items-center card-body">
-                      <Col xl={6} md={6}>
-                        <div className="position-relative d-inline-block">
-                          <div className="avatar-upload">
-                            <div className="avatar-edit">
-                              <Form.Group controlId="formFile" className="mb-3">
-                                <Form.Label>
-                                  <PlusCircleFill size={24} color="gray"  
-                                  style={{ cursor:"pointer" }}
-                                   data-tooltip-id="selectImage"
-                                  
-                                  />
-                                </Form.Label>
-                                <Form.Control
-                                  type="file"
-                                  name="image"
-                                  accept="image/*"
-                                  onChange={(
-                                    event: React.ChangeEvent<HTMLInputElement>
-                                  ) => {
-                                    setImageFile(event?.target?.files?.[0]!);
-                                    
-                                  }}
-                                  required={true}
-                                />
-                              </Form.Group>
-                              <ReactTooltip
-                                id="selectImage"
-                                place="right"
-                                content="Select Image"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-end">
-                          <Upload
-                            size={24}
-                            color="grey"
-                            style={{ cursor:"pointer" }}
-                                   data-tooltip-id="uploadImage"
-                            onClick={() => uploadBanerImage()}
-                          />
-                        </div>
-                        <ReactTooltip
-                                id="uploadImage"
-                                place="right"
-                                content="Click to upload images"
-                              />
-                      </Col>
-                    </Row>
-                  </Col>
-                  <Col className="text-end mt-3">
-                    {moduleAccess?.canUpdate ? (
-                      <Button
-                        className="btn btn-sm btn-dark"
-                        disabled={!formik.isValid}
-                        onClick={() => {
-                          if (formik.isValid) {
-                            formik.handleSubmit();
-                          } else {
-                            console.log("is invalid", !formik.isValid);
-                          }
-                        }}
-                      >
-                        {" "}
-                        <Image
-                          src={IMAGE_URL + WHITE_CHECKED_IMAGE}
-                        /> Save{" "}
-                      </Button>
-                    ) : null}
-                  </Col>
-                </Row>
+                <h4 id="st-banners" className="st-section-title">App Banners</h4>
+                <div className="small text-muted mb-2">Images shown on the mobile app home screen.</div>
+                <InputGroup className="mb-3" style={{ maxWidth: 520 }}>
+                  <Form.Control
+                    type="file"
+                    name="image"
+                    accept="image/*"
+                    disabled={!moduleAccess?.canUpdate || isUploading}
+                    onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                      setImageFile(event?.target?.files?.[0]!);
+                    }}
+                  />
+                  <Button variant="dark" disabled={!imageFile || isUploading || !moduleAccess?.canUpdate} onClick={() => uploadBanerImage()}>
+                    {isUploading ? <Spinner animation="border" size="sm" /> : <Upload />} Upload
+                  </Button>
+                </InputGroup>
                 <Row>
                   {Array.isArray(formik.values.banner) &&
                     formik.values.banner.map((item, index) => {
                       return (
                         <Col xl={6} sm={6} xs={12} key={index}>
-                          <div className="thumbnail mb-4">
+                          <div className="thumbnail mb-4 st-banner">
                             <Image
                               className="img-fluid img-thumbnail"
                               src={
@@ -330,17 +350,18 @@ export default function Setting() {
                               }
                               // style={{ borderRadius: "100%" }}
                             /> */}
-                            <XCircleFill
-                              size={24}
-                              color="red"
-                              onClick={() => handleDeleteBanerImage(item)}
-                            />
+                            {moduleAccess?.canUpdate ? (
+                              <button type="button" className="st-banner-remove" title="Remove banner" onClick={() => handleDeleteBanerImage(item)}>
+                                <XCircleFill size={22} />
+                              </button>
+                            ) : null}
                           </div>
                         </Col>
                       );
                     })}
                 </Row>
                 <Container>
+                  <h4 id="st-customer" className="st-section-title">Customer Types</h4>
                   <Row>
                     <Col sm={4}>
                       <Form.Group>
@@ -474,7 +495,7 @@ export default function Setting() {
                   </Row>
                   <Row className="pt-4">
                     <hr />
-                    <h4 className="text-center">Loyaltyscheme</h4>
+                    <h4 id="st-loyalty" className="st-section-title">Loyalty Scheme</h4>
                     <Row className="pt-4">
                       <Col sm={4}>
                         <Form.Group as={Row} className="form-group">
@@ -917,7 +938,7 @@ export default function Setting() {
                   </Row>
                   <Row className="pt-4">
                     <hr />
-                    <h4 className="text-center">Redemption</h4>
+                    <h4 id="st-redemption" className="st-section-title">Redemption</h4>
                     <Row className="pt-4">
                       <Col sm={4}>
                         <Form.Group as={Row} className="form-group">
@@ -1257,7 +1278,7 @@ export default function Setting() {
                     </Row>
                     <Row className="pt-4">
                       <hr />
-                      <h4 className="text-center">Login</h4>
+                      <h4 id="st-login" className="st-section-title">Login</h4>
                       <Row className="pt-4">
                         <Col sm={4}>
                           <Form.Group as={Row} className="form-group">
@@ -1373,7 +1394,7 @@ export default function Setting() {
                     </Row>
                     <Row className="pt-4">
                       <hr />
-                      <h4 className="text-center">Points</h4>
+                      <h4 id="st-points" className="st-section-title">Points</h4>
                       <Row className="pt-4">
                         <Col sm={6}>
                           <Form.Group as={Row} className="form-group">
@@ -1423,7 +1444,7 @@ export default function Setting() {
                    <div >
   <Row>
     <Row className="m-25" style={{ textAlign: "center" }}>
-      <h4>Reel Links</h4>
+      <h4 id="st-reels" className="st-section-title">Reel Links</h4>
     </Row>
 
     <Col sm={12}>
@@ -1494,7 +1515,7 @@ export default function Setting() {
     <Col sm={12} className="mt-3">
           <Button
       type="button"
-      variant="primary"
+      variant="dark"
       onClick={youtubeFormik.handleSubmit}
     >
       Save Reel Links
@@ -1504,7 +1525,7 @@ export default function Setting() {
 </div>
                     <Row className="pt-4">
                       <hr />
-                      <h4 className="text-center">Mobile App</h4>
+                      <h4 id="st-app" className="st-section-title">Mobile App</h4>
                       <Row className="pt-4">
                         <Col md={4} sm={6} xs={12}>
                           <Form.Group className="form-group">
@@ -1565,7 +1586,7 @@ export default function Setting() {
 
                   <Row>
                     <Row className="m-25" style={{ textAlign: "center" }}>
-                      <h4>Helpdesk</h4>
+                      <h4 id="st-helpdesk" className="st-section-title">Helpdesk</h4>
                     </Row>
                     <Row>
                       {" "}
@@ -1648,7 +1669,7 @@ export default function Setting() {
                   <Row>
                     <Row className="m-25" style={{ textAlign: "center" }}>
                       {" "}
-                      <h4>Socialmedia </h4>
+                      <h4 id="st-social" className="st-section-title">Social Media</h4>
                     </Row>
                     <Col>
                       <Row>
@@ -1765,7 +1786,7 @@ export default function Setting() {
                   <Row>
                     <Row className="m-25" style={{ textAlign: "center" }}>
                       {" "}
-                      <h4>Catalogue </h4>
+                      <h4 id="st-catalogue" className="st-section-title">Catalogue</h4>
                     </Row>
                     <Row>
                       <Row>
@@ -1855,7 +1876,7 @@ export default function Setting() {
                     </Row>
                   </Row>
                   <Row>
-                    <h5 className="text-center">Gift</h5>
+                    <h4 id="st-gift" className="st-section-title">Gift</h4>
                     <Col sm={4}>
                       <Form.Group>
                         <Form.Label htmlFor="gift_types">Gift Types</Form.Label>
@@ -1921,7 +1942,7 @@ export default function Setting() {
                     </Col>
                   </Row>
                   <Row>
-                    <h5 className="text-center">Call Center</h5>
+                    <h4 id="st-callcenter" className="st-section-title">Call Center</h4>
                     <Col sm={4}>
                       <Form.Group>
                         <Form.Label htmlFor="calltypes">Call Types</Form.Label>
@@ -2074,34 +2095,20 @@ export default function Setting() {
                 </Container>
               </Form>
               <Container>
-                <Form>
-                  <Col sm={4}>
-                    <label>Remark</label>
-                    {/* <Form.Control
-                      type="text"
-                      name="remark"
-                      onChange={(e: any) => handle(e)}
-                      value={data.remark}
-                      required={true}
-                      autoComplete="off"
-                      id="remark"
-                      placeholder="Enter Remark"
-                    /> */}
-                    <input
-                      type="text"
-                      id="remark"
-                      value={remark}
-                      onChange={handleRemarkChange}
-                    />
-                    <br />
-                    <button type="button" onClick={Remarksubmit}>
-                      save
-                    </button>
-                  </Col>
-                </Form>
+                <h4 id="st-remark" className="st-section-title">Remarks</h4>
+                <div className="small text-muted mb-2">Adds a remark option for customers.</div>
+                <InputGroup style={{ maxWidth: 520 }}>
+                  <Form.Control
+                    id="remark"
+                    value={remark}
+                    onChange={handleRemarkChange}
+                    autoComplete="off"
+                    placeholder="Enter remark"
+                  />
+                  <Button variant="dark" disabled={!remark.trim()} onClick={Remarksubmit}>Save Remark</Button>
+                </InputGroup>
               </Container>
             </Card>
-          </Row>
         </Col>
       </Row>
     </Layout>

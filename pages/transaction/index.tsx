@@ -4,8 +4,9 @@ import Select from "react-select";
 
 import Link from "next/link";
 import {
+  Alert,
+  Badge,
   Button,
-  Card,
   Col,
   Row,
   Table,
@@ -13,17 +14,20 @@ import {
   Form,
   Spinner,
   InputGroup,
+  Modal,
   Offcanvas,
 } from "react-bootstrap";
 import {
   Download,
+  Funnel,
   PencilSquare,
-  PlusCircleFill,
-  XCircleFill,
-  XSquare,
+  PlusCircle,
+  Search,
+  Trash,
+  Upload,
+  X,
 } from "react-bootstrap-icons";
 import { useDispatch, useSelector } from "react-redux";
-import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
 import PaginationNav from "../../components/Common/PaginationNav";
 import {
@@ -106,6 +110,17 @@ const Transaction = React.forwardRef((props, ref) => {
       })
       .catch(() => setPointTypeOptions([{ value: "all", label: "All credits (Cr)" }]));
   }, []);
+  // search box: the list reloads 400 ms after typing stops instead of on every key
+  const [searchText, setSearchText] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPaginationData((prev) => (prev.search === searchText ? prev : { ...prev, currentPage: 1, search: searchText }));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+  const [showImport, setShowImport] = useState(false);
+  const [importStatus, setImportStatus] = useState<{ type: "success" | "danger" | "info"; text: string } | null>(null);
+  const [isImporting, setIsImporting] = useState<"" | "coupon" | "other">("");
   const clearAllFilters = () =>
     setPaginationData({ ...paginationData, currentPage: 1, startDate: "", endDate: "", customerType: [], pointType: [] });
   const [requestFileData, setRequestFileData] = useState<KeyValue[]>([]);
@@ -164,6 +179,7 @@ const Transaction = React.forwardRef((props, ref) => {
   }, [paginationData, filterData]);
 
   const handleDeleteItem = (id: string) => {
+    if (!window.confirm("Delete this transaction? The customer's points will change.")) return;
     backendDeleteTransaction(id)
       .then((result) => {
         if (!result.isError) {
@@ -213,16 +229,26 @@ const Transaction = React.forwardRef((props, ref) => {
   const handleFileUploadSubmit = async () => {
     try {
       const dataArray = Object.values(requestFileData);
+      if (!dataArray.length) {
+        setImportStatus({ type: "danger", text: "Please choose a Coupon Scan file first." });
+        return;
+      }
+      setIsImporting("coupon");
+      setImportStatus({ type: "info", text: `Uploading ${dataArray.length} coupon rows…` });
       backendImportCouponsToScan(dataArray)
         .then((result) => {
           if (!result.isError) {
-            router.refresh();
+            setImportStatus({ type: "success", text: `Coupon Scan uploaded (${dataArray.length} rows).` });
+            setRequestFileData([]);
+            fetchTransactions();
           } else {
+            setImportStatus({ type: "danger", text: result.message || "Coupon Scan upload failed." });
           }
         })
         .catch((err) => {
-          console.log("error", err);
-        });
+          setImportStatus({ type: "danger", text: err?.response?.data?.message || "Coupon Scan upload failed." });
+        })
+        .finally(() => setIsImporting(""));
     } catch (e) {
       console.log(e, "Error in the Login");
     }
@@ -243,16 +269,26 @@ const Transaction = React.forwardRef((props, ref) => {
   const handleFileUploadTransactionSubmit = async () => {
     try {
       const dataArray = Object.values(requestTransactionFileData);
+      if (!dataArray.length) {
+        setImportStatus({ type: "danger", text: "Please choose an Other Transaction file first." });
+        return;
+      }
+      setIsImporting("other");
+      setImportStatus({ type: "info", text: `Uploading ${dataArray.length} transaction rows…` });
       backendImportTransactions(dataArray)
         .then((result) => {
           if (!result.isError) {
-            router.refresh();
+            setImportStatus({ type: "success", text: `Other Transaction uploaded (${dataArray.length} rows).` });
+            setRequestTransactionFileData([]);
+            fetchTransactions();
           } else {
+            setImportStatus({ type: "danger", text: result.message || "Transaction upload failed." });
           }
         })
         .catch((err) => {
-          console.log("error", err);
-        });
+          setImportStatus({ type: "danger", text: err?.response?.data?.message || "Transaction upload failed." });
+        })
+        .finally(() => setIsImporting(""));
     } catch (e) {
       console.log(e, "Error in the Login");
     }
@@ -307,398 +343,297 @@ const Transaction = React.forwardRef((props, ref) => {
 
   ]
 
+  const total = Number(resPaginateData.totalDocs) || 0;
+  const perPage = Number(paginationData.recordPerPage) || 10;
+  const from = total ? (paginationData.currentPage - 1) * perPage + 1 : 0;
+  const to = Math.min(paginationData.currentPage * perPage, total);
+  const activeFilters: Array<{ key: string; label: string; clear: () => void }> = [];
+  if (paginationData.startDate || paginationData.endDate) {
+    activeFilters.push({
+      key: "date",
+      label: `Date: ${paginationData.startDate || "…"} → ${paginationData.endDate || "…"}`,
+      clear: () => setPaginationData({ ...paginationData, currentPage: 1, startDate: "", endDate: "" }),
+    });
+  }
+  if (paginationData.customerType?.length) {
+    activeFilters.push({
+      key: "ctype",
+      label: `Customer: ${paginationData.customerType.join(", ")}`,
+      clear: () => setPaginationData({ ...paginationData, currentPage: 1, customerType: [] }),
+    });
+  }
+  (paginationData.pointType || []).forEach((type: string) => {
+    activeFilters.push({
+      key: `pt-${type}`,
+      label: type === "all" ? "All credits (Cr)" : type,
+      clear: () => setPaginationData({
+        ...paginationData,
+        currentPage: 1,
+        pointType: (paginationData.pointType || []).filter((t: string) => t !== type),
+      }),
+    });
+  });
+
+  const formatDate = (value?: string) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime()) || !/^\d{4}-\d{2}-\d{2}T/.test(String(value))) return value;
+    return date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <Layout>
-      <BreadcrumbComponent
-        firstItem={{ href: "/dashboard", label: "Home" }}
-        secondItem={{ href: "", label: "" }}
-        itemlabel="Transaction List"
-      />
-      <Row>
-        <Col xl={12} md={12}>
-          <Row className="align-items-center mb-4">
-            <Col md={3}>
-              <h3 className="card-body">
-                Transaction List({resPaginateData.totalDocs})
-              </h3>
-            </Col>
-            <Col md={2}>
-              <Form.Group className="d-flex align-items-center mb-0">
-                <Form.Label className="p-2">Show</Form.Label>
-                <Form.Select
-                  value={paginationData.recordPerPage}
-                  onChange={(e: any) => {
-                    setPaginationData({
-                      ...paginationData,
-                      currentPage: 1,
-                      recordPerPage: e.target.value,
-                    });
-                  }}
-                >
-                  <option value={10}>{10}</option>
-                  <option value={100}>{100}</option>
-                  <option value={200}>{200}</option>
-                  <option value={500}>{500}</option>
-                  <option value={1000}>{1000}</option>
-                  <option value={2000}>{2000}</option>
-                  <option value={5000}>5000</option>
-                  <option value={10000}>10000</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            {/* <Col md={4}>
-              <Form.Group className="d-flex align-items-center mb-0">
-                <Form.Label className="p-2">PointType</Form.Label>
-                <Form.Select
-                  value={paginationData.pointType}
-                  onChange={(e: any) => {
-                    setPaginationData({
-                      ...paginationData,
-                      currentPage: 1,
-                      pointType: e.target.value,
-                    });
-                  }}
-                >
-                  <option value={"Gajra Gro Loyalty Program"}>
-                    Gajra Gro Loyalty Program
-                  </option>
+      <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+        <div>
+          <h3 className="mb-1">Transactions</h3>
+          <div className="text-muted small">{total.toLocaleString("en-IN")} transactions{activeFilters.length || paginationData.search ? " match the current filters" : ""}</div>
+        </div>
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          {moduleAccess?.canImport && (
+            <Button className="cd-btn cd-btn-outline" onClick={() => { setImportStatus(null); setShowImport(true); }}>
+              <Upload /> Import
+            </Button>
+          )}
+          {moduleAccess?.canExport && (
+            <Button className="cd-btn cd-btn-outline" onClick={handleOnExport} title="Exports the rows on this page">
+              <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
+            </Button>
+          )}
+          <Button className="cd-btn cd-btn-outline" onClick={() => setShowFilters(true)}>
+            <Funnel /> Filters
+            {activeFilters.length ? <Badge bg="dark" pill className="ms-2">{activeFilters.length}</Badge> : null}
+          </Button>
+          {moduleAccess?.canCreate && (
+            <Link href={{ pathname: "/transaction/create" }}>
+              <Button variant="dark" className="cd-btn"><PlusCircle /> Transaction</Button>
+            </Link>
+          )}
+        </div>
+      </div>
 
-                  <option value={"Gajra Loyalty2"}>Gajra Loyalty2</option>
-                  <option value={"MRP LABEL SCHEME"}>MRP LABEL SCHEME</option>
-                  <option value={"Coupon Scan"}>Coupon Scan</option>
-                  <option value="">All</option>
-                </Form.Select>
-              </Form.Group>
-            </Col> */}
+      <div className="tx-card">
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <InputGroup className="tx-search">
+            <InputGroup.Text><Search /></InputGroup.Text>
+            <Form.Control
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              autoComplete="off"
+              placeholder="Search firm, contact person, coupon…"
+            />
+            {searchText ? (
+              <Button variant="outline-secondary" onClick={() => setSearchText("")} title="Clear search"><X /></Button>
+            ) : null}
+          </InputGroup>
+          {activeFilters.map((filter) => (
+            <span key={filter.key} className="tx-chip">
+              {filter.label}
+              <button type="button" onClick={filter.clear} title="Remove filter"><X /></button>
+            </span>
+          ))}
+          {activeFilters.length > 1 ? (
+            <Button variant="link" size="sm" className="text-muted" onClick={clearAllFilters}>Clear all</Button>
+          ) : null}
+        </div>
 
+        <div className="tx-table-wrap">
+          <Table hover className="mb-0 tx-table">
+            <thead>
+              <tr>
+                <th>Ref #</th>
+                <th>Customer</th>
+                <th className="text-end">Points</th>
+                <th>Coupon</th>
+                <th>GG No</th>
+                <th>Category</th>
+                <th>Point Type</th>
+                <th>Packing Slip</th>
+                <th>Date</th>
+                <th>Created By</th>
+                {moduleAccess?.canUpdate || moduleAccess?.canDelete ? <th className="text-end">Action</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={11} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+              ) : Array.isArray(transactionData) && transactionData.length ? (
+                transactionData.map((item, index) => (
+                  <tr key={item._id || index}>
+                    <td className="text-muted">{item.refno || "-"}</td>
+                    <td>
+                      <Link href={{ pathname: "/transaction/" + item._id }} className="tx-firm">{item.firmName || "-"}</Link>
+                      {item.contactPerson ? <div className="tx-sub">{item.contactPerson}</div> : null}
+                    </td>
+                    <td className="text-end">
+                      <span className={`tx-points ${item.transactionType === "Dr" ? "dr" : "cr"}`}>
+                        {item.transactionType === "Dr" ? "−" : "+"}{Number(item.points ?? 0).toLocaleString("en-IN")}
+                      </span>
+                    </td>
+                    <td className="tx-mono">{item.coupon || "-"}</td>
+                    <td>{item.productNo || "-"}</td>
+                    <td className="tx-ellipsis" title={item.categoryName}>{item.categoryName || "-"}</td>
+                    <td className="tx-ellipsis" title={item.pointType}>{item.pointType || "-"}</td>
+                    <td>{item.packingList || "-"}</td>
+                    <td className="text-nowrap">{formatDate(item.createdAt)}</td>
+                    <td className="text-nowrap">{item.creadtedByContactPerson || "-"}</td>
+                    {moduleAccess?.canUpdate || moduleAccess?.canDelete ? (
+                      <td className="text-end text-nowrap">
+                        {moduleAccess?.canUpdate && (
+                          <Link href={{ pathname: "/transaction/create", query: { id: item._id } }}>
+                            <Button size="sm" variant="light" className="tx-icon-btn" title="Edit"><PencilSquare /></Button>
+                          </Link>
+                        )}
+                        {moduleAccess?.canDelete && (
+                          <Button size="sm" variant="light" className="tx-icon-btn text-danger ms-1" title="Delete" onClick={() => handleDeleteItem(item._id)}>
+                            <Trash />
+                          </Button>
+                        )}
+                      </td>
+                    ) : null}
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={11} className="text-center text-muted py-5">No transactions found</td></tr>
+              )}
+            </tbody>
+          </Table>
+        </div>
+
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+          <div className="d-flex align-items-center gap-2 small text-muted">
+            <span>Showing {from.toLocaleString("en-IN")}–{to.toLocaleString("en-IN")} of {total.toLocaleString("en-IN")}</span>
+            <span className="ms-2">Rows</span>
+            <Form.Select
+              size="sm"
+              style={{ width: 90 }}
+              value={paginationData.recordPerPage}
+              onChange={(e: any) => setPaginationData({ ...paginationData, currentPage: 1, recordPerPage: e.target.value })}
+            >
+              {[10, 50, 100, 200, 500, 1000, 2000, 5000, 10000].map((n) => <option key={n} value={n}>{n}</option>)}
+            </Form.Select>
+          </div>
+          <PaginationNav
+            align="end"
+            currentPage={paginationData.currentPage}
+            totalPages={resPaginateData.totalPages}
+            disabled={isLoading}
+            onPageChange={(page) => setPaginationData({ ...paginationData, currentPage: page })}
+          />
+        </div>
+      </div>
+
+      <Offcanvas show={showFilters} onHide={() => setShowFilters(false)} placement="end">
+        <Offcanvas.Header closeButton>
+          <Offcanvas.Title>
+            Filters{" "}
+            <span className="badge rounded-pill bg-light text-dark border ms-1">{total.toLocaleString("en-IN")}</span>
+          </Offcanvas.Title>
+        </Offcanvas.Header>
+        <Offcanvas.Body>
+          <Form.Group className="mb-4">
+            <Form.Label className="fw-semibold">Created Date</Form.Label>
             <Row>
-              <Col md={3}>
-                <Form.Group className="form-group">
-                  <Form.Label></Form.Label>
-                  <Form.Control
-                    type="text"
-                    onChange={(e) => {
-                      setPaginationData({
-                        ...paginationData,
-                        currentPage: 1,
-                        search: e.target.value,
-                      });
-                    }}
-                    value={paginationData.search}
-                    autoComplete="off"
-                    placeholder="Search"
-                  />
-                </Form.Group>
-              </Col>{" "}
-              <Col>
-                {moduleAccess?.canExport && (
-                  <Button
-                    onClick={handleOnExport}
-                    className="ml-15 m-3"
-                    variant="outline-light"
-                  >
-                    <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
-                  </Button>
-                )}
+              <Col xs={6}>
+                <Form.Label className="small text-muted">From</Form.Label>
+                <Form.Control
+                  type="date"
+                  name="startDate"
+                  max={paginationData.endDate || undefined}
+                  onChange={(e) => setPaginationData({ ...paginationData, currentPage: 1, startDate: e.target.value })}
+                  value={paginationData.startDate}
+                  autoComplete="off"
+                />
               </Col>
-              <Col className="text-end">
-                {" "}
-                {moduleAccess?.canCreate && (
-                  <Link href={{ pathname: "/transaction/create" }}>
-                    <Button className="mr-15 text-end" variant="dark">
-                      <Image src={IMAGE_URL + WHITE_PLUS_CIRCLE_IMAGE} />{" "}
-                      Transaction
-                    </Button>
-                  </Link>
-                )}
-                <Button variant="dark" className="ms-2" onClick={() => setShowFilters(true)}>
-                  <Image src={IMAGE_URL + WHITE_FILTER_IMAGE} /> Filters
-                </Button>
+              <Col xs={6}>
+                <Form.Label className="small text-muted">To</Form.Label>
+                <Form.Control
+                  type="date"
+                  name="endDate"
+                  min={paginationData.startDate || undefined}
+                  onChange={(e) => setPaginationData({ ...paginationData, currentPage: 1, endDate: e.target.value })}
+                  value={paginationData.endDate}
+                  autoComplete="off"
+                />
               </Col>
             </Row>
-            <Offcanvas show={showFilters} onHide={() => setShowFilters(false)} placement="end">
-              <Offcanvas.Header closeButton>
-                <Offcanvas.Title>
-                  Filters{" "}
-                  <span className="badge rounded-pill bg-light text-dark border ms-1">
-                    {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")}
-                  </span>
-                </Offcanvas.Title>
-              </Offcanvas.Header>
-              <Offcanvas.Body>
-                <Form.Group className="mb-4">
-                  <Form.Label className="fw-semibold">Created Date</Form.Label>
-                  <Row>
-                    <Col xs={6}>
-                      <Form.Label className="small text-muted">From</Form.Label>
-                      <Form.Control
-                        type="date"
-                        name="startDate"
-                        max={paginationData.endDate || undefined}
-                        onChange={(e) => setPaginationData({ ...paginationData, currentPage: 1, startDate: e.target.value })}
-                        value={paginationData.startDate}
-                        autoComplete="off"
-                      />
-                    </Col>
-                    <Col xs={6}>
-                      <Form.Label className="small text-muted">To</Form.Label>
-                      <Form.Control
-                        type="date"
-                        name="endDate"
-                        min={paginationData.startDate || undefined}
-                        onChange={(e) => setPaginationData({ ...paginationData, currentPage: 1, endDate: e.target.value })}
-                        value={paginationData.endDate}
-                        autoComplete="off"
-                      />
-                    </Col>
-                  </Row>
-                </Form.Group>
+          </Form.Group>
 
-                <Form.Group className="mb-4">
-                  <Form.Label htmlFor="transactionCustomerType" className="fw-semibold">Customer Type</Form.Label>
-                  <Select
-                    inputId="transactionCustomerType"
-                    options={customerTypeOptions}
-                    value={customerTypeOptions.find((option) => option.value === paginationData?.customerType?.[0]) || null}
-                    onChange={(e: any) =>
-                      setPaginationData({ ...paginationData, currentPage: 1, customerType: e ? [e.value] : [] })
-                    }
-                    isClearable
-                    isSearchable={false}
-                  />
-                </Form.Group>
+          <Form.Group className="mb-4">
+            <Form.Label htmlFor="transactionCustomerType" className="fw-semibold">Customer Type</Form.Label>
+            <Select
+              inputId="transactionCustomerType"
+              options={customerTypeOptions}
+              value={customerTypeOptions.find((option) => option.value === paginationData?.customerType?.[0]) || null}
+              onChange={(e: any) => setPaginationData({ ...paginationData, currentPage: 1, customerType: e ? [e.value] : [] })}
+              isClearable
+              isSearchable={false}
+            />
+          </Form.Group>
 
-                <Form.Group className="mb-4">
-                  <Form.Label htmlFor="transactionPointType" className="fw-semibold">Point Type / Scheme</Form.Label>
-                  <Select
-                    inputId="transactionPointType"
-                    isMulti
-                    isClearable
-                    isLoading={pointTypeOptions === null}
-                    placeholder="All transactions"
-                    options={pointTypeOptions || []}
-                    value={(pointTypeOptions || []).filter((option) =>
-                      (paginationData.pointType || []).includes(option.value)
-                    )}
-                    onChange={(selected: any) =>
-                      setPaginationData({
-                        ...paginationData,
-                        currentPage: 1,
-                        pointType: (selected || []).map((option: any) => option.value),
-                      })
-                    }
-                  />
-                  <Form.Text className="text-muted">Schemes come from Loyalty Scheme, plus every type already used</Form.Text>
-                </Form.Group>
+          <Form.Group className="mb-4">
+            <Form.Label htmlFor="transactionPointType" className="fw-semibold">Point Type / Scheme</Form.Label>
+            <Select
+              inputId="transactionPointType"
+              isMulti
+              isClearable
+              isLoading={pointTypeOptions === null}
+              placeholder="All transactions"
+              options={pointTypeOptions || []}
+              value={(pointTypeOptions || []).filter((option) => (paginationData.pointType || []).includes(option.value))}
+              onChange={(selected: any) =>
+                setPaginationData({ ...paginationData, currentPage: 1, pointType: (selected || []).map((option: any) => option.value) })
+              }
+            />
+            <Form.Text className="text-muted">Schemes come from Loyalty Scheme, plus every type already used</Form.Text>
+          </Form.Group>
 
-                <div className="d-flex gap-2 pt-2">
-                  <Button variant="outline-secondary" className="flex-fill" onClick={clearAllFilters}>
-                    Clear all
-                  </Button>
-                  <Button variant="dark" className="flex-fill" onClick={() => setShowFilters(false)}>
-                    Show {(resPaginateData.totalDocs ?? 0).toLocaleString("en-IN")} transactions
-                  </Button>
-                </div>
-              </Offcanvas.Body>
-            </Offcanvas>
-            {moduleAccess?.canImport && (
-              <Row className="align-items-center mb-4">
-                <Col md={6}>
-                  <h5 className="card-body">Coupon Scan</h5>
-                  <Row className="align-items-center mb-4">
-                    <Col md={4}>
-                      {moduleAccess?.canImport ? (
-                        <Button
-                          onClick={handleCouponExportTemplate}
-                          className="btn btn-dark p-2 pr-2"
-                          variant="outline-light"
-                        >
-                          <Download /> Template
-                        </Button>
-                      ) : null}
-                    </Col>
-                    <Col md={8}>
-                      <InputGroup>
-                        <Form.Control
-                          type="file"
-                          accept=".xlsx"
-                          onChange={handleFileChange}
-                        />
-                        <Button
-                          className="btn btn-dark"
-                          onClick={handleFileUploadSubmit}
-                        >
-                          {" "}
-                          Upload
-                        </Button>
-                      </InputGroup>
-                    </Col>
-                  </Row>
-                </Col>
-                <Col md={6}>
-                  <h5 className="card-body">Other Transection</h5>
-                  <Row className="align-items-center mb-4">
-                    <Col md={4}>
-                      {moduleAccess?.canImport ? (
-                        <Button
-                          onClick={handleExportTemplate}
-                          className="btn btn-dark p-2 pr-2"
-                          variant="outline-light"
-                        >
-                          <Download /> Template
-                        </Button>
-                      ) : null}
-                    </Col>
-                    <Col md={8}>
-                      <InputGroup>
-                        <Form.Control
-                          type="file"
-                          accept=".xlsx"
-                          onChange={handleTransactionFileChange}
-                        />
-                        <Button
-                          className="btn btn-dark"
-                          onClick={handleFileUploadTransactionSubmit}
-                        >
-                          {" "}
-                          Upload
-                        </Button>
-                      </InputGroup>
-                    </Col>
-                  </Row>
-                </Col>
-              </Row>
-            )}
+          <div className="d-flex gap-2 pt-2">
+            <Button variant="outline-secondary" className="flex-fill" onClick={clearAllFilters}>Clear all</Button>
+            <Button variant="dark" className="flex-fill" onClick={() => setShowFilters(false)}>
+              Show {total.toLocaleString("en-IN")} transactions
+            </Button>
+          </div>
+        </Offcanvas.Body>
+      </Offcanvas>
 
-            <Col xl={12} sm={12} xs={12} className="mb-2">
-              <PaginationNav
-                align="start"
-                currentPage={paginationData.currentPage}
-                totalPages={resPaginateData.totalPages}
-                disabled={isLoading}
-                onPageChange={(page) =>
-                  setPaginationData({ ...paginationData, currentPage: page })
-                }
-              />
-            </Col>
-            <Card className="flat-card p-0">
-              <div className="row-table">
-                <Col sm={12} md={12}>
-                  <div className="card1">
-                    <div className="table-border-style">
-                      <div className="table-responsive">
-                        <Table>
-                          <thead>
-                            <tr>
-                              <th>#</th>
-                              <th>Firm Name</th>
-                              <th>Contact Person</th>
-                              <th>Points</th>
-                              <th>Coupon</th>
-                              <th>GG No</th>
-                              <th>Category</th>
-                              <th>PointType</th>
-                              <th>Packing Slip No.</th>
-                              <th>Date</th>
-                              <th>Action</th>
-                              <th>Created By</th>
-
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Array.isArray(transactionData) &&
-                              transactionData.map((item, index) => {
-                                return (
-                                  <tr key={index}>
-                                    <td>{item.refno}</td>
-                                    <td className="text-black">
-                                      <Link
-                                        className="mb-2"
-                                        href={{
-                                          pathname: "/transaction/" + item._id,
-                                        }}
-                                      >
-                                        {item.firmName}
-                                      </Link>
-                                    </td>
-                                    <td className="text-black">
-                                      <Link
-                                        className="mb-3"
-                                        href={{
-                                          pathname: "/transaction/" + item._id,
-                                        }}
-                                      >
-                                        {item.contactPerson}
-                                      </Link>
-                                    </td>
-                                    <td>{item.points}</td>
-                                    <td>{item.coupon}</td>
-                                    <td>{item.productNo}</td>
-                                    <td>{item.categoryName}</td>
-
-                                    <td>{item.pointType}</td>
-                                    <td>{item.packingList || '-'}</td>
-
-                                    <td>{item.createdAt}</td>
-                                    <td>
-                                      {moduleAccess?.canUpdate && (
-                                        <Link
-                                          className="pt-2"
-                                          href={{
-                                            pathname: "/transaction/create",
-                                            query: { id: item._id },
-                                          }}
-                                        >
-                                          <Button
-                                            className="p-0"
-                                            variant="outline-light"
-                                          >
-                                            <Image
-                                              src={IMAGE_URL + EDIT_DEMO_IMAGE}
-                                            />
-                                          </Button>
-                                        </Link>
-                                      )}
-                                      {moduleAccess?.canDelete && (
-                                        <Button
-                                          className="p-2"
-                                          variant="outline-light"
-                                          onClick={() => {
-                                            handleDeleteItem(item._id);
-                                          }}
-                                        >
-                                          <Image
-                                            src={IMAGE_URL + RED_TRASH_IMAGE}
-                                          />
-                                        </Button>
-                                      )}
-                                    </td>
-                                    <td>{item.creadtedByContactPerson}</td>
-
-                                  </tr>
-                                );
-                              })}
-                          </tbody>
-                        </Table>
-                        {isLoading ? (
-                          <Col
-                            xl={12}
-                            sm={12}
-                            xs={12}
-                            className="mb-3 text-center"
-                          >
-                            <Spinner animation="border" />
-                          </Col>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </Col>
+      <Modal show={showImport} onHide={() => !isImporting && setShowImport(false)} centered size="lg">
+        <Modal.Header closeButton={!isImporting}>
+          <Modal.Title>Import Transactions</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {importStatus ? (
+            <Alert variant={importStatus.type} className="py-2">
+              {importStatus.type === "info" ? <Spinner animation="border" size="sm" className="me-2" /> : null}
+              {importStatus.text}
+            </Alert>
+          ) : null}
+          <Row className="g-3">
+            <Col md={6}>
+              <div className="tx-import-box">
+                <div className="fw-semibold mb-1">Coupon Scan</div>
+                <div className="small text-muted mb-3">Columns: coupon, customerid</div>
+                <Button size="sm" className="cd-btn-outline mb-3" onClick={handleCouponExportTemplate}><Download /> Template</Button>
+                <Form.Control type="file" accept=".xlsx" onChange={handleFileChange} disabled={!!isImporting} className="mb-2" />
+                <Button variant="dark" className="w-100" disabled={!!isImporting || !requestFileData.length} onClick={handleFileUploadSubmit}>
+                  {isImporting === "coupon" ? <Spinner animation="border" size="sm" /> : <Upload />} Upload{requestFileData.length ? ` ${requestFileData.length} rows` : ""}
+                </Button>
               </div>
-            </Card>
+            </Col>
+            <Col md={6}>
+              <div className="tx-import-box">
+                <div className="fw-semibold mb-1">Other Transaction</div>
+                <div className="small text-muted mb-3">Columns: points, customerid, pointType</div>
+                <Button size="sm" className="cd-btn-outline mb-3" onClick={handleExportTemplate}><Download /> Template</Button>
+                <Form.Control type="file" accept=".xlsx" onChange={handleTransactionFileChange} disabled={!!isImporting} className="mb-2" />
+                <Button variant="dark" className="w-100" disabled={!!isImporting || !requestTransactionFileData.length} onClick={handleFileUploadTransactionSubmit}>
+                  {isImporting === "other" ? <Spinner animation="border" size="sm" /> : <Upload />} Upload{requestTransactionFileData.length ? ` ${requestTransactionFileData.length} rows` : ""}
+                </Button>
+              </div>
+            </Col>
           </Row>
-        </Col>
-      </Row>
+        </Modal.Body>
+      </Modal>
     </Layout>
   );
 });

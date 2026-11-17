@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import Router, { useRouter } from 'next/router';
 import Link from 'next/link'
-import { Button, Card, Col, Row, Table, Image, Spinner, Form } from 'react-bootstrap'
-import { Search } from 'react-bootstrap-icons'
+import { Badge, Button, Card, Col, Row, Table, Image, Spinner, Form, InputGroup } from 'react-bootstrap'
+import { CheckCircle, PlusCircle, Search, X } from 'react-bootstrap-icons'
+import PaginationNav from '../../components/Common/PaginationNav'
 import { useDispatch, useSelector } from 'react-redux'
-import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
 import { Drawer, IconButton, Box } from "@mui/material";
 import { ChevronLeft, ChevronRight } from "@mui/icons-material";
 import Layout from '../../components/Layout'
@@ -21,8 +21,6 @@ import { EDIT_DEMO_IMAGE, IMAGE_URL, RED_TRASH_IMAGE, WHITE_FILTER_IMAGE, WHITE_
 import { ModuleAccessInterface } from '../../interfaces/setting.interface';
 
 import { DamageEntriesInterface } from '../../interfaces/coupon.interface';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css'; // Import the CSS for the date picker
 import moment from 'moment';
 import ApprovedModal from './modal';
 import {
@@ -103,10 +101,18 @@ export default function DamageEntries() {
 
   const [status, setstatus] =
   useState<string>("");
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  // dates as yyyy-mm-dd (native date inputs)
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [search, setSearch] =
   useState<string>("");
+  // search box text; the list reloads 400 ms after typing stops
+  const [searchText, setSearchText] = useState<string>("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchText.trim()), 400);
+    return () => clearTimeout(timer);
+  }, [searchText]);
+  const [totalDocs, setTotalDocs] = useState<number>(0);
  
   
 const [resPaginateData, setResPaginateData] =
@@ -115,18 +121,20 @@ const [resPaginateData, setResPaginateData] =
    const requestOption = {
      recordPerPage : paginationData.recordPerPage , 
      statusType :status ,
-     startDate : startDate ? moment(startDate).format("YYYY-MM-DD") : "" , 
-     endDate : endDate? moment(endDate).format("YYYY-MM-DD") : "" , 
+     startDate : startDate || "" ,
+     endDate : endDate || "" , 
      currentPage:paginationData.currentPage,
      search:search
 
    }
   const dispatch = useDispatch();
   const fetchCustomers = async () => {
+    setIsLoading(true)
     await backendGetAllDamageCoupons(requestOption).then((res) => {
       if (!res.isError) {
         setCouponExport(res.data)
       }
+      setTotalDocs(Number(res?.data?.[0]?.paginate?.[0]?.totalDocs) || 0)
       dispatch({
         type: 'GET_COUPONS',
         payload: res.data[0]?.docs
@@ -138,6 +146,10 @@ const [resPaginateData, setResPaginateData] =
   useEffect(() => {
     fetchCustomers()
   }, [status , startDate , endDate , paginationData, updateAPI,search])
+  // a new filter starts again from page 1
+  useEffect(() => {
+    setPaginationData((prev) => (prev.currentPage === 1 ? prev : { ...prev, currentPage: 1 }))
+  }, [status, startDate, endDate, search])
 
 
 
@@ -346,232 +358,168 @@ const [resPaginateData, setResPaginateData] =
               </Box>
             </Drawer> */}
     <Layout>
-      <BreadcrumbComponent firstItem={{ href: '/dashboard', label: 'Home' }} secondItem={{ href: '', label: '' }} itemlabel='Damage QR List' />
-     
-      <Row> 
-         <Col xl={2} md={12} > 
-        
-              <Form.Group className="d-flex flex-column gap-1">
-                <Form.Label className="p-0 m-0">Status</Form.Label>
-                <Form.Select
-                  value={status}
-                  onChange={(e: any) => {
-                    setstatus( e.target.value,);
-                  }}
-                >
-                  <option value="">Status</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="Hold">Hold</option>
-
-               
-                </Form.Select>
-              </Form.Group>
-            
-          </Col>
-          <Col xl={5} lg={12} md={12} > 
-          <div className='d-flex gap-3' >
-            <div className='d-flex flex-column gap-1 '  >
-            <label htmlFor=""> Start Date </label>
-          <DatePicker
-        selected={startDate}
-        //@ts-ignore
-        onChange={(date: Date | undefined) => setStartDate(date)}
-        selectsStart
-        startDate={startDate}
-        endDate={endDate}
-        className='form-control'
-
-      />
-      </div>
-      <div className='d-flex flex-column gap-1 '  >
-
-            <label htmlFor=""> End Date </label>
-
-      <DatePicker
-        selected={endDate}
-        //@ts-ignore
-        onChange={(date: Date | undefined) => setEndDate(date)}
-        selectsEnd
-        startDate={startDate}
-        endDate={endDate}
-        minDate={startDate}
-        className='form-control'
-      />
-      </div>
+      <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+        <div>
+          <h3 className="mb-1">Damage QR Entries</h3>
+          <div className="text-muted small">
+            {totalDocs.toLocaleString('en-IN')} entries{status || startDate || endDate || search ? ' match the current filters' : ''}
+          </div>
+        </div>
+        <div className="d-flex flex-wrap align-items-center gap-2">
+          <Button className="cd-btn cd-btn-outline" onClick={handleOnExport} title="Exports the rows on this page">
+            <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
+          </Button>
+          <Link href={{ pathname: '/damageentries/create' }}>
+            <Button variant="dark" className="cd-btn"><PlusCircle /> Add Entry</Button>
+          </Link>
+        </div>
       </div>
 
-           </Col>
-           <Col xl={2} md={12} > 
-        
-           <Form.Group className="d-flex flex-column gap-1">
-  <Form.Label className="p-0 m-0">Search</Form.Label>
-  <Form.Control
-    type="search"
-    value={search}
-    onChange={(e: any) => setSearch(e.target.value)}
-  />
-</Form.Group>
-      
+      <div className="tx-card">
+        <div className="rd-status-tabs mb-3">
+          {[
+            { value: '', label: 'All', tone: '' },
+            { value: 'Pending', label: 'Pending', tone: 'warning' },
+            { value: 'Hold', label: 'Hold', tone: 'info' },
+            { value: 'Approved', label: 'Approved', tone: 'success' },
+            { value: 'Rejected', label: 'Rejected', tone: 'danger' },
+          ].map((option) => (
+            <button
+              type="button"
+              key={option.label}
+              className={`rd-status-tab ${status === option.value ? 'active' : ''}`}
+              onClick={() => setstatus(option.value)}
+            >
+              {option.tone ? <span className={`rd-dot bg-${option.tone}`} /> : null} {option.label}
+            </button>
+          ))}
+        </div>
 
+        <div className="d-flex flex-wrap align-items-end gap-3 mb-3">
+          <div className="flex-grow-1" style={{ minWidth: 260, maxWidth: 420 }}>
+            <Form.Label className="small text-muted mb-1">Search</Form.Label>
+            <InputGroup>
+              <InputGroup.Text><Search /></InputGroup.Text>
+              <Form.Control
+                type="text"
+                value={searchText}
+                onChange={(e: any) => setSearchText(e.target.value)}
+                autoComplete="off"
+                placeholder="Firm, contact person, mobile, coupon, GG no…"
+              />
+              {searchText ? <Button variant="outline-secondary" onClick={() => setSearchText('')} title="Clear search"><X /></Button> : null}
+            </InputGroup>
+          </div>
+          <div>
+            <Form.Label className="small text-muted mb-1">From</Form.Label>
+            <Form.Control type="date" value={startDate} max={endDate || undefined} onChange={(e: any) => setStartDate(e.target.value)} />
+          </div>
+          <div>
+            <Form.Label className="small text-muted mb-1">To</Form.Label>
+            <Form.Control type="date" value={endDate} min={startDate || undefined} onChange={(e: any) => setEndDate(e.target.value)} />
+          </div>
+          {startDate || endDate ? (
+            <Button variant="link" className="text-muted" onClick={() => { setStartDate(''); setEndDate('') }}>Clear dates</Button>
+          ) : null}
+        </div>
 
-    </Col>
-    {/* <Col xl={2} md={12} > 
-<Form.Group className="d-flex flex-column gap-1">
-  <Form.Label className="p-0 m-0">Search Transection</Form.Label>
-  <Form.Control
-    type="search"
-    value={newpaginationData?.search}
-    onChange={(e) => {
-      setnewPaginationData({
-        ...newpaginationData,
-        search: e.target.value,
-      });
-    }}  />
-</Form.Group>   </Col> */}
-         </Row>
-      <Row>
-        <Col xl={12} md={12}>
-          <Row className="align-items-center mb-4 mt-4">
-            <Col md={6}>
-              <h3 className="card-body">Damage QR List({Array.isArray(DamageEntriesList) ? DamageEntriesList.length : '0'})</h3>
-            </Col>
-         
-            <Col md={6} className="text-end  mb-3">
-              {/* {moduleAccess?.canSearch ? ( */}
-                <Link
-                  href={{
-                    pathname: '/coupons/search',
-                  }}
-                >
-                </Link>
-                {/* ) 
-                : null} */}
-              {/* {moduleAccess?.canExport ? ( */}
-                <Button onClick={handleOnExport} className="p-2 pr-2" variant="outline-light"><Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel</Button>
-                {/* ) : null} */}
-              {/* {moduleAccess?.canCreate ? ( */}
-                <Link
-                href={{
-                  pathname: '/damageentries/create',
-                }}
-              >
-                <Button className="btn btn-dark  "><Image src={IMAGE_URL + WHITE_PLUS_CIRCLE_IMAGE} /> Add Entries</Button>
-              </Link>
-              
-              {/* ) : null */}
-              {/* } */}
-            </Col>
-            <Col md={2}>
-              <Form.Group className="d-flex align-items-center mb-0">
-                <Form.Label className="p-2">Show</Form.Label>
-                <Form.Select
-                  value={paginationData.recordPerPage}
-                  onChange={(e: any) => {
-                    setPaginationData({
-                      ...paginationData,
-                      recordPerPage: e.target.value,
-                    });
-                  }}
-                >
-                  <option value={10}>{10}</option>
-                  <option value={100}>{100}</option>
-                  <option value={200}>{200}</option>
-                  <option value={500}>{500}</option>
-                  <option value={1000}>{1000}</option>
-                  <option value={2000}>{2000}</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Card className="flat-card p-0">
-              <div className="row-table">
-                <Col sm={12} md={12}>
-                  <div className="card1">
-                    <div className="table-border-style">
-                      <div className="table-responsive">
-                        <Table>
-                          <thead>
-                            <tr>
-                              <th>#</th>
-                              <th>Date</th>
-                              <th>Firm Name</th>
-                              <th>Customer Type</th>
-                              <th>Status</th>
-                              <th>Contact Person</th>
-                              <th>Mobile Number</th>
-                              <th>COUPON Code (Damage)</th>
-                              <th>GG Number</th>
-                              <th>Attachement</th>
-                              <th>Remark</th>
+        <div className="tx-table-wrap">
+          <Table hover className="mb-0 tx-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Coupon (Damage)</th>
+                <th>GG No</th>
+                <th>Photos</th>
+                <th>Remark</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={8} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+              ) : Array.isArray(DamageEntriesList) && DamageEntriesList.length ? (
+                DamageEntriesList.map((item: any, index: number) => {
+                  const canReview = item.statusType === 'Pending' || item.statusType === 'Hold'
+                  const tone = item.statusType === 'Pending' ? 'warning'
+                    : item.statusType === 'Approved' ? 'success'
+                      : item.statusType === 'Hold' ? 'info' : 'danger'
+                  return (
+                    <tr key={item._id || index}>
+                      <td className="text-muted">{(paginationData.currentPage - 1) * Number(paginationData.recordPerPage) + index + 1}</td>
+                      <td className="text-nowrap">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
+                      </td>
+                      <td>
+                        <Link href={{ pathname: '/customer/' + item.customerid }} className="tx-firm">{item.firmName || '-'}</Link>
+                        <div className="tx-sub">
+                          {[item.contactPerson, item.mobile].filter(Boolean).join(' · ')}
+                          {item.customerType ? <Badge bg={item.customerType === 'Mechanic' ? 'primary' : 'info'} className="ms-2 rd-status">{item.customerType}</Badge> : null}
+                        </div>
+                      </td>
+                      <td className="text-nowrap">
+                        <Badge bg={tone} text={tone === 'warning' ? 'dark' : undefined} className="rd-status">{item.statusType || '-'}</Badge>
+                        {canReview ? (
+                          <Button
+                            size="sm"
+                            variant="dark"
+                            className="ms-2 py-0 px-2"
+                            onClick={() => { setEntriesData(item); setModalShow(true) }}
+                          >
+                            <CheckCircle /> Review
+                          </Button>
+                        ) : null}
+                      </td>
+                      <td className="tx-mono">{item.couponCode || '-'}</td>
+                      <td>{item.couponGg || '-'}</td>
+                      <td>
+                        <div className="d-flex gap-1">
+                          {(item?.couponImage || []).map((res: any, i: any) => (
+                            <Link target="_blank" key={i} href={IMAGE_URL + res}>
+                              <img src={IMAGE_URL + res} alt="damage photo" className="dm-thumb" />
+                            </Link>
+                          ))}
+                          {!(item?.couponImage || []).length ? <span className="text-muted">-</span> : null}
+                        </div>
+                      </td>
+                      <td className="tx-ellipsis" title={item.remark}>{item.remark || '-'}</td>
+                    </tr>
+                  )
+                })
+              ) : (
+                <tr><td colSpan={8} className="text-center text-muted py-5">No damage entries found</td></tr>
+              )}
+            </tbody>
+          </Table>
+        </div>
 
-
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Array.isArray(DamageEntriesList) && DamageEntriesList.map((item, index) => {
-                              return (
-                                <tr key={index}>
-                                  <td>{index + 1}</td>
-                                  <td>{new Date(item.createdAt).toDateString()}</td>
-
-
-                                  <td><Link className="mb-3"
-                                   href={{
-                                    pathname: "/customer/" + item.customerid,
-                                  }}
-                                  >{item.firmName}</Link></td>
-                                     <td>{item.customerType}</td>
-                                  <td> 
-                                    <button 
-                                  disabled={item.statusType == "Approved" || item.statusType == "Rejected"   }
-                                  onClick={() =>  { setEntriesData(item) ; setModalShow(true) }  }  
-                                  className={`${item.statusType == "Pending" ? "btn-warning" : item.statusType == "Approved" ? "btn-success" : item.statusType == "Hold"  ? 'btn-info'  :"btn-danger" } btn `} > 
-                                  {item.statusType} 
-                                  </button> 
-                                   </td>
-
-                                  <td>{item.contactPerson}</td>
-                                  <td>{item.mobile}</td>
-                                  <td>{item.couponCode}</td>
-                                  <td>{item.couponGg}</td>
-                                  <td>
-                                    {
-                                     item?.couponImage?.map((res:any ,i :any)=>(
-                                      <Link  target="_blank"  key={i} 
-                                      href={
-                                      IMAGE_URL+res } >
-                                       <img  src={ IMAGE_URL+res}  alt='attachement image' width={80} className='mx-1' style={{borderRadius:5}}  /> 
-                                       </Link>
-                                      ))
-                                    }
-                                  
-                                     </td>
-
-                                  <td>{item.remark}</td>
-                                  
-
-                                   
-
-                                 
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                   
-                        </Table>
-                      </div>
-                    </div>
-                  </div>
-                </Col>
-                {(isLoading) ? <Col xl={12} sm={12} xs={12} className='mb-3 text-center'><Spinner animation="border" /></Col> : null}
-              </div>
-            </Card>
-            
-          </Row>
-        </Col>
-      </Row>
-    
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+          <div className="d-flex align-items-center gap-2 small text-muted">
+            <span>
+              Showing {totalDocs ? ((paginationData.currentPage - 1) * Number(paginationData.recordPerPage) + 1).toLocaleString('en-IN') : 0}–
+              {Math.min(paginationData.currentPage * Number(paginationData.recordPerPage), totalDocs).toLocaleString('en-IN')} of {totalDocs.toLocaleString('en-IN')}
+            </span>
+            <span className="ms-2">Rows</span>
+            <Form.Select
+              size="sm"
+              style={{ width: 90 }}
+              value={paginationData.recordPerPage}
+              onChange={(e: any) => setPaginationData({ ...paginationData, currentPage: 1, recordPerPage: e.target.value })}
+            >
+              {[10, 50, 100, 200, 500, 1000, 2000].map((n) => <option key={n} value={n}>{n}</option>)}
+            </Form.Select>
+          </div>
+          <PaginationNav
+            align="end"
+            currentPage={paginationData.currentPage}
+            totalPages={Math.ceil(totalDocs / (Number(paginationData.recordPerPage) || 10))}
+            disabled={isLoading}
+            onPageChange={(page) => setPaginationData({ ...paginationData, currentPage: page })}
+          />
+        </div>
+      </div>
     </Layout>
       <ApprovedModal
       approveshow={modalShow}

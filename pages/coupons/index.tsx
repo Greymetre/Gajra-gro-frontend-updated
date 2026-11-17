@@ -2,23 +2,32 @@ import React, { ChangeEvent, useEffect, useMemo, useRef, useState } from "react"
 import Router, { useRouter } from "next/router";
 import Link from "next/link";
 import {
+  Alert,
+  Badge,
   Button,
-  Card,
   Col,
+  Dropdown,
   Row,
   Table,
   Image,
   Spinner,
   Form,
   InputGroup,
+  Modal,
 } from "react-bootstrap";
 import {
-  FileEarmarkArrowDown,
+  ArrowLeftRight,
+  Download,
   FileEarmarkArrowUp,
+  PencilSquare,
+  PlusCircle,
+  QrCode,
   Search,
+  Trash,
+  Upload,
+  X,
 } from "react-bootstrap-icons";
 import { useDispatch, useSelector } from "react-redux";
-import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
 import {
   backendGetAllCoupons,
@@ -57,7 +66,8 @@ export default function Coupons() {
   const [isQrUpdateLoading, setIsQrUpdateLoading] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
-  const today: string = new Date().toISOString().slice(0, 10);
+  // today in IST (toISOString alone gives yesterday before 5:30 am IST)
+  const today: string = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
   const [dateFilter, setDateFilter] = useState<{
     startDate: string;
     endDate: string;
@@ -173,14 +183,33 @@ useEffect(() => {
   };
 
   const handleResetDateFilter = () => {
-    const t = new Date().toISOString().slice(0, 10);
+    const t = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
     const reset = { startDate: t, endDate: t };
     setDateFilter(reset);
     // fetch with reset dates (handled safely inside fetchCustomers)
     fetchCustomers(reset.startDate, reset.endDate);
   };
 
+  const [showReplace, setShowReplace] = useState(false);
+  const [replaceStatus, setReplaceStatus] = useState<{ type: "success" | "danger"; text: string } | null>(null);
+  const [isReplacing, setIsReplacing] = useState(false);
+  const [showInvoiceUpdate, setShowInvoiceUpdate] = useState(false);
+
+  // quick date ranges (IST dates as yyyy-mm-dd)
+  const istDay = (offsetDays = 0) => new Date(Date.now() + 330 * 60000 - offsetDays * 86400000).toISOString().slice(0, 10);
+  const applyRange = (startDate: string, endDate: string) => {
+    setDateFilter({ startDate, endDate });
+    fetchCustomers(startDate, endDate);
+  };
+  const quickRanges = [
+    { label: "Today", start: istDay(0), end: istDay(0) },
+    { label: "Last 7 days", start: istDay(6), end: istDay(0) },
+    { label: "Last 30 days", start: istDay(29), end: istDay(0) },
+    { label: "This month", start: `${istDay(0).slice(0, 8)}01`, end: istDay(0) },
+  ];
+
   const handleDeleteItem = (id: string) => {
+    if (!window.confirm("Delete this QR code batch? Its coupons will be removed.")) return;
     backendDeleteCoupon(id)
       .then((result) => {
         if (!result.isError) {
@@ -191,15 +220,25 @@ useEffect(() => {
       .catch((err) => {});
   };
 
-   const handleReplacePackageSlip = () => {
-    replacePackageNumber({ oldPackingSlip: oldPackageSlip, newPackingSlip: newPackageSlip })
+  const handleReplacePackageSlip = () => {
+    if (!window.confirm(`Replace packing slip "${oldPackageSlip}" with "${newPackageSlip}" on all its QR codes?`)) return;
+    setIsReplacing(true);
+    setReplaceStatus(null);
+    replacePackageNumber({ oldPackingSlip: oldPackageSlip.trim(), newPackingSlip: newPackageSlip.trim() })
       .then((result) => {
         if (!result.isError) {
+          setReplaceStatus({ type: "success", text: result.message || `Packing slip ${oldPackageSlip} replaced with ${newPackageSlip}.` });
+          setOldPackageSlip("");
+          setNewPackageSlip("");
           fetchCustomers();
         } else {
+          setReplaceStatus({ type: "danger", text: result.message || "Packing slip could not be replaced." });
         }
       })
-      .catch((err) => {});
+      .catch((err) => {
+        setReplaceStatus({ type: "danger", text: err?.response?.data?.message || "Packing slip could not be replaced." });
+      })
+      .finally(() => setIsReplacing(false));
   };
 
 
@@ -494,292 +533,222 @@ useEffect(() => {
     }
   };
 
+  const list: any[] = Array.isArray(couponList) ? couponList : [];
+  const totalCoupons = list.reduce((sum, item) => sum + (Number(item.couponCount) || 0), 0);
+  const rangeLabel = dateFilter.startDate === dateFilter.endDate
+    ? dateFilter.startDate
+    : `${dateFilter.startDate} → ${dateFilter.endDate}`;
+  const formatDate = (value?: string) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <Layout>
-      <BreadcrumbComponent
-        firstItem={{ href: "/dashboard", label: "Home" }}
-        secondItem={{ href: "", label: "" }}
-        itemlabel="QRcode List"
-      />
-
-      <Row className="align-items-center">
-        <Col md={4}>
-          <h3 className="card-body">
-            QRcode List({Array.isArray(couponList) ? couponList.length : "0"})
-          </h3>
-        </Col>
-        <Col md={3}>
-          <Form.Group className="form-group">
-            <Form.Control
-              type="text"
-              onChange={(e) => {
-                setSearch(e.target.value);
-              }}
-              value={search}
-              autoComplete="off"
-              placeholder="Search by packing slip / or GG NO / customer type"
-            />
-          </Form.Group>
-        </Col>
-        <Col md={5} className="text-end mb-3">
-          <Card
-            className="d-inline-block p-2 me-2 border-0"
-            style={{ background: "transparent" }}
-          >
-            <Form>
-              <Row className="g-2 align-items-end justify-content-end">
-                <Col xs={12} sm="auto" className="text-start">
-                  <Form.Label className="mb-1 small text-muted">
-                    From
-                  </Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={dateFilter.startDate}
-                    onChange={(e) =>
-                      setDateFilter({
-                        ...dateFilter,
-                        startDate: e.target.value,
-                      })
-                    }
-                  />
-                </Col>
-                <Col xs={12} sm="auto" className="text-start">
-                  <Form.Label className="mb-1 small text-muted">To</Form.Label>
-                  <Form.Control
-                    type="date"
-                    value={dateFilter.endDate}
-                    min={dateFilter.startDate}
-                    onChange={(e) =>
-                      setDateFilter({ ...dateFilter, endDate: e.target.value })
-                    }
-                  />
-                </Col>
-                <Col xs={12} sm="auto" className="text-end">
-                  <InputGroup>
-                    <Button variant="dark" onClick={handleApplyDateFilter}>
-                      Apply
-                    </Button>
-                    <Button
-                      variant="outline-secondary"
-                      onClick={handleResetDateFilter}
-                    >
-                      Reset
-                    </Button>
-                  </InputGroup>
-                </Col>
-              </Row>
-            </Form>
-          </Card>
-        </Col>
-      </Row>
-      <Row className=" mb-4">
-        <Col md={6}>
-        <Row>
-          <Col span={5}>
-           <Form.Group className="form-group">
-            <Form.Control
-              type="text"
-              onChange={(e) => { setOldPackageSlip(e.target.value) }}
-              value={oldPackageSlip}
-              autoComplete="off"
-              placeholder="Enter Old Packing Slip No."
-            />
-          </Form.Group>
-          </Col>
-          <Col span={5}>
-           <Form.Group className="form-group">
-            <Form.Control
-              type="text"
-              onChange={(e) => { setNewPackageSlip(e.target.value) }}
-              value={newPackageSlip}
-              autoComplete="off"
-              placeholder="Enter New Packing Slip No."
-            />
-          </Form.Group>
-          </Col>
-          <Col span={2}>
-          <Button
-  className="btn btn-dark"
-  onClick={handleReplacePackageSlip}
-  disabled={!oldPackageSlip || !newPackageSlip}
->
-  Replace
-</Button>
-
-          </Col>
-
-
-
-        </Row>
-         
-
-         
-
-        </Col>
-
-        <Col md={6} className="text-end">
-          {moduleAccess?.canImport ? (
-            <>
-              <input
-                ref={qrUpdateFileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleImportQrUpdate}
-                className="d-none"
-              />
-              <Button
-                onClick={handleDownloadQrUpdateTemplate}
-                disabled={isQrUpdateLoading}
-                className="p-2 me-2"
-                variant="outline-light"
-                title="Download Invoice Template"
-                aria-label="Download Invoice Template"
-              >
-                <FileEarmarkArrowDown size={24} />
-              </Button>
-              <Button
-                onClick={() => qrUpdateFileInputRef.current?.click()}
-                disabled={isQrUpdateLoading}
-                className="p-2 me-2"
-                variant="outline-light"
-                title="Update Packing Slip Invoice"
-                aria-label="Update Packing Slip Invoice"
-              >
-                {isQrUpdateLoading ? (
-                  <Spinner animation="border" size="sm" />
-                ) : (
-                  <FileEarmarkArrowUp size={24} />
-                )}
-              </Button>
-            </>
-          ) : null}
+      <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+        <div>
+          <h3 className="mb-1">QR Codes</h3>
+          <div className="text-muted small">
+            {list.length.toLocaleString("en-IN")} batches · {totalCoupons.toLocaleString("en-IN")} coupons · {rangeLabel}
+          </div>
+        </div>
+        <div className="d-flex flex-wrap align-items-center gap-2">
           {moduleAccess?.canSearch ? (
-            <Link
-              href={{
-                pathname: "/coupons/search",
-              }}
-            >
-              <Button className="btn btn-dark">
-                <Search /> Get Coupon
-              </Button>
+            <Link href={{ pathname: "/coupons/search" }}>
+              <Button className="cd-btn cd-btn-outline"><Search /> Get Coupon</Button>
             </Link>
           ) : null}
           {moduleAccess?.canExport ? (
-            <>
-              <Button
-                onClick={handleOnExport}
-                className="p-2 pr-2 me-2"
-                variant="outline-light"
-              >
-                <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export Excel
-              </Button>
-              <Button
-                onClick={handleOnExportAll}
-                className="p-2 pr-2"
-                variant="outline-light"
-              >
-                <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export All Coupons
-              </Button>
-            </>
+            <Dropdown>
+              <Dropdown.Toggle className="cd-btn cd-btn-outline" id="qr-export">
+                <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item onClick={handleOnExport}>This list (batches)</Dropdown.Item>
+                <Dropdown.Item onClick={handleOnExportAll}>All coupons in the date range</Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
           ) : null}
+          <Dropdown>
+            <Dropdown.Toggle className="cd-btn cd-btn-outline" id="qr-tools">Tools</Dropdown.Toggle>
+            <Dropdown.Menu align="end">
+              <Dropdown.Item onClick={() => { setReplaceStatus(null); setShowReplace(true); }}>
+                <ArrowLeftRight className="me-2" /> Replace packing slip no.
+              </Dropdown.Item>
+              {moduleAccess?.canImport ? (
+                <Dropdown.Item onClick={() => setShowInvoiceUpdate(true)}>
+                  <FileEarmarkArrowUp className="me-2" /> Update invoice details
+                </Dropdown.Item>
+              ) : null}
+            </Dropdown.Menu>
+          </Dropdown>
           {moduleAccess?.canCreate ? (
-            <Link
-              href={{
-                pathname: "/coupons/create",
-              }}
-            >
-              <Button className="btn btn-dark">
-                <Image src={IMAGE_URL + WHITE_PLUS_CIRCLE_IMAGE} />
-                Generate QRcode
-              </Button>
+            <Link href={{ pathname: "/coupons/create" }}>
+              <Button variant="dark" className="cd-btn"><PlusCircle /> Generate QR Code</Button>
             </Link>
           ) : null}
-        </Col>
-      </Row>
-
-      <Card className="flat-card p-0">
-        <div className="row-table">
-          <Col sm={12} md={12}>
-            <div className="card1">
-              <div className="table-border-style">
-                <div className="table-responsive">
-                  <Table>
-                    <thead>
-                      <tr>
-                        <th>#</th>
-                        <th>Profile Name</th>
-                        <th>Coupons</th>
-                        <th>Date</th>
-                        <th>GG NO</th>
-                        <th>Customer Type</th>
-                        <th>PACKING SLIP NO</th>
-                        <th>Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Array.isArray(couponList) &&
-                        couponList.map((item, index) => {
-                          return (
-                            <tr key={index}>
-                              <td>{index + 1}</td>
-                              <td>
-                                <Link
-                                  className="mb-3"
-                                  href={{
-                                    pathname: "/coupons/" + item._id,
-                                  }}
-                                >
-                                  {item.profileName}
-                                </Link>
-                              </td>
-                              <td>{item.couponCount}</td>
-                              <td>{new Date(item.createdAt).toDateString()}</td>
-                              <td>{item.productNo}</td>
-                              {/* <td>{item.customerType?.join(', ')}</td>                             */}
-                              <td>
-                                {Array.isArray(item.customerType)
-                                  ? item.customerType.join(", ")
-                                  : item.customerType || "-"}
-                              </td>
-                              <td>{item.packingList}</td>
-                              <td>
-                                {moduleAccess?.canUpdate ? (
-                                  <Link
-                                    href={{
-                                      pathname: "/coupons/create",
-                                      query: { id: item._id },
-                                    }}
-                                  >
-                                    <Image src={IMAGE_URL + EDIT_DEMO_IMAGE} />
-                                  </Link>
-                                ) : null}
-                                {moduleAccess?.canDelete ? (
-                                  <Button
-                                    className="btn p-0 btn-icon"
-                                    onClick={() => {
-                                      handleDeleteItem(item._id);
-                                    }}
-                                  >
-                                    <Image src={IMAGE_URL + RED_TRASH_IMAGE} />
-                                  </Button>
-                                ) : null}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                    </tbody>
-                  </Table>
-                </div>
-              </div>
-            </div>
-          </Col>
-          {isLoading ? (
-            <Col xl={12} sm={12} xs={12} className="mb-3 text-center">
-              <Spinner animation="border" />
-            </Col>
-          ) : null}
         </div>
-      </Card>
+      </div>
+
+      <div className="tx-card">
+        <div className="d-flex flex-wrap align-items-end gap-3 mb-3">
+          <div className="flex-grow-1" style={{ minWidth: 260, maxWidth: 420 }}>
+            <Form.Label className="small text-muted mb-1">Search</Form.Label>
+            <InputGroup>
+              <InputGroup.Text><Search /></InputGroup.Text>
+              <Form.Control
+                type="text"
+                onChange={(e) => setSearch(e.target.value)}
+                value={search}
+                autoComplete="off"
+                placeholder="Packing slip / GG No / customer type"
+              />
+              {search ? <Button variant="outline-secondary" onClick={() => setSearch("")} title="Clear search"><X /></Button> : null}
+            </InputGroup>
+          </div>
+          <div>
+            <Form.Label className="small text-muted mb-1">From</Form.Label>
+            <Form.Control
+              type="date"
+              value={dateFilter.startDate}
+              max={dateFilter.endDate || undefined}
+              onChange={(e) => setDateFilter({ ...dateFilter, startDate: e.target.value })}
+            />
+          </div>
+          <div>
+            <Form.Label className="small text-muted mb-1">To</Form.Label>
+            <Form.Control
+              type="date"
+              value={dateFilter.endDate}
+              min={dateFilter.startDate}
+              onChange={(e) => setDateFilter({ ...dateFilter, endDate: e.target.value })}
+            />
+          </div>
+          <div className="d-flex gap-2">
+            <Button variant="dark" onClick={handleApplyDateFilter}>Apply</Button>
+            <Button variant="outline-secondary" onClick={handleResetDateFilter}>Reset</Button>
+          </div>
+        </div>
+        <div className="d-flex flex-wrap gap-2 mb-3">
+          {quickRanges.map((range) => (
+            <button
+              type="button"
+              key={range.label}
+              className={`rd-status-tab ${dateFilter.startDate === range.start && dateFilter.endDate === range.end ? "active" : ""}`}
+              onClick={() => applyRange(range.start, range.end)}
+            >
+              {range.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="tx-table-wrap">
+          <Table hover className="mb-0 tx-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Profile Name</th>
+                <th className="text-end">Coupons</th>
+                <th>GG No</th>
+                <th>Customer Type</th>
+                <th>Packing Slip No</th>
+                <th>Date</th>
+                {moduleAccess?.canUpdate || moduleAccess?.canDelete ? <th className="text-end">Action</th> : null}
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={8} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+              ) : list.length ? (
+                list.map((item, index) => (
+                  <tr key={item._id || index}>
+                    <td className="text-muted">{index + 1}</td>
+                    <td>
+                      <Link href={{ pathname: "/coupons/" + item._id }} className="tx-firm d-inline-flex align-items-center gap-2">
+                        <QrCode /> {item.profileName || "-"}
+                      </Link>
+                      {item.categoryName ? <div className="tx-sub">{item.categoryName}</div> : null}
+                    </td>
+                    <td className="text-end"><span className="rd-points">{Number(item.couponCount || 0).toLocaleString("en-IN")}</span></td>
+                    <td>{item.productNo || "-"}</td>
+                    <td>
+                      {(Array.isArray(item.customerType) ? item.customerType : item.customerType ? [item.customerType] : []).map((type: string) => (
+                        <Badge key={type} bg={type === "Mechanic" ? "primary" : "info"} className="me-1 rd-status">{type}</Badge>
+                      ))}
+                      {!item.customerType || (Array.isArray(item.customerType) && !item.customerType.length) ? "-" : null}
+                    </td>
+                    <td className="tx-mono">{item.packingList || "-"}</td>
+                    <td className="text-nowrap">{formatDate(item.createdAt)}</td>
+                    {moduleAccess?.canUpdate || moduleAccess?.canDelete ? (
+                      <td className="text-end text-nowrap">
+                        {moduleAccess?.canUpdate ? (
+                          <Link href={{ pathname: "/coupons/create", query: { id: item._id } }}>
+                            <Button size="sm" variant="light" className="tx-icon-btn" title="Edit"><PencilSquare /></Button>
+                          </Link>
+                        ) : null}
+                        {moduleAccess?.canDelete ? (
+                          <Button size="sm" variant="light" className="tx-icon-btn text-danger ms-1" title="Delete" onClick={() => handleDeleteItem(item._id)}>
+                            <Trash />
+                          </Button>
+                        ) : null}
+                      </td>
+                    ) : null}
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={8} className="text-center text-muted py-5">No QR codes for {rangeLabel}. Try another date range.</td></tr>
+              )}
+            </tbody>
+          </Table>
+        </div>
+      </div>
+
+      <Modal show={showReplace} onHide={() => !isReplacing && setShowReplace(false)} centered>
+        <Modal.Header closeButton={!isReplacing}>
+          <Modal.Title>Replace Packing Slip No.</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {replaceStatus ? <Alert variant={replaceStatus.type} className="py-2">{replaceStatus.text}</Alert> : null}
+          <Form.Group className="mb-3">
+            <Form.Label>Old packing slip no.</Form.Label>
+            <Form.Control value={oldPackageSlip} onChange={(e) => setOldPackageSlip(e.target.value)} autoComplete="off" placeholder="e.g. PS-1023" />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>New packing slip no.</Form.Label>
+            <Form.Control value={newPackageSlip} onChange={(e) => setNewPackageSlip(e.target.value)} autoComplete="off" placeholder="e.g. PS-1024" />
+          </Form.Group>
+          <Button
+            variant="dark"
+            className="w-100"
+            onClick={handleReplacePackageSlip}
+            disabled={isReplacing || !oldPackageSlip.trim() || !newPackageSlip.trim()}
+          >
+            {isReplacing ? <Spinner animation="border" size="sm" /> : <ArrowLeftRight />} Replace
+          </Button>
+        </Modal.Body>
+      </Modal>
+
+      <Modal show={showInvoiceUpdate} onHide={() => !isQrUpdateLoading && setShowInvoiceUpdate(false)} centered>
+        <Modal.Header closeButton={!isQrUpdateLoading}>
+          <Modal.Title>Update Invoice Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <div className="small text-muted mb-3">
+            Adds invoice no., invoice date and dealer to the QR codes of each packing slip.
+            Columns: Packing Slip No, Invoice No, Invoice Date (DD/MM/YYYY), Dealer Code, Dealer Name, State, City.
+          </div>
+          <Button size="sm" className="cd-btn-outline mb-3" onClick={handleDownloadQrUpdateTemplate} disabled={isQrUpdateLoading}>
+            <Download /> Template
+          </Button>
+          <input ref={qrUpdateFileInputRef} type="file" accept=".xlsx,.xls" onChange={handleImportQrUpdate} className="d-none" />
+          <Button variant="dark" className="w-100" disabled={isQrUpdateLoading} onClick={() => qrUpdateFileInputRef.current?.click()}>
+            {isQrUpdateLoading ? <Spinner animation="border" size="sm" /> : <Upload />} Choose file and upload
+          </Button>
+        </Modal.Body>
+      </Modal>
     </Layout>
   );
 }

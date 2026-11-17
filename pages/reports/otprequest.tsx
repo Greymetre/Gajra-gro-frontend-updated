@@ -1,213 +1,199 @@
 import React, { useEffect, useState } from 'react'
-import Router, { useRouter } from 'next/router';
-import Link from 'next/link'
-import { Button, Card, Col, Row, Table, Image, Form, Spinner, InputGroup } from 'react-bootstrap'
-import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
+import { Alert, Badge, Button, Form, Image, InputGroup, Spinner, Table } from 'react-bootstrap'
+import { Phone, Search, Send, X } from 'react-bootstrap-icons'
 import Layout from '../../components/Layout'
+import PaginationNav from '../../components/Common/PaginationNav'
 import { backendOtpLogReport, backendNewOtpRequest } from '../../helpers/backend_helper'
-import { EDIT_DEMO_IMAGE, EXCEL_DEMO_IMAGE, IMAGE_URL, RED_TRASH_IMAGE, WHITE_FILTER_IMAGE, WHITE_PLUS_CIRCLE_IMAGE, WHITE_TRASH_IMAGE } from '../../utils/constant';
-import * as XLSX from 'xlsx';
-import { PaginationInterface, ResPaginateInterface, initialPagination, initialResPaginate } from '../../interfaces/pagination.interface';
-import { ReportOtpRequestInterface } from '../../interfaces/reports.interface';
-import { Formik, FormikHelpers, useFormik, useFormikContext } from 'formik';
-import * as yup from "yup";
+import { EXCEL_DEMO_IMAGE, IMAGE_URL } from '../../utils/constant'
+import * as XLSX from 'xlsx'
+import { PaginationInterface, ResPaginateInterface, initialPagination, initialResPaginate } from '../../interfaces/pagination.interface'
+import { ReportOtpRequestInterface } from '../../interfaces/reports.interface'
 
-const schema = yup.object().shape({
-  mobile: yup.string().min(10, 'Enter valid Mobile No').max(10, 'Enter valid Mobile No').required('mobile is required'),
-});
+const formatDate = (value?: any) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime()) || !/^\d{4}-\d{2}-\d{2}T/.test(String(value))) return String(value)
+  return date.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
 
 const OtpRequest = React.forwardRef((props, ref) => {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [paginationData, setPaginationData] = useState<PaginationInterface>(initialPagination)
   const [resPaginateData, setResPaginateData] = useState<ResPaginateInterface>(initialResPaginate)
   const [otpData, setOTPData] = useState<Array<ReportOtpRequestInterface>>([])
+  const [mobile, setMobile] = useState('')
+  const [isSending, setIsSending] = useState(false)
+  const [sendStatus, setSendStatus] = useState<{ type: 'success' | 'danger'; text: string } | null>(null)
+  // search box text; the list reloads 400 ms after typing stops
+  const [searchText, setSearchText] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPaginationData((prev) => (prev.search === searchText ? prev : { ...prev, currentPage: 1, search: searchText }))
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchText])
+
   const fetchOtpLogReport = async () => {
-    await backendOtpLogReport(paginationData).then((res) => {
+    setIsLoading(true)
+    try {
+      const res = await backendOtpLogReport(paginationData)
       const { docs, paginate } = res.data
-      let totalData = Array.isArray(paginate) && paginate.length && paginate[0].totalDocs
+      const totalData = (Array.isArray(paginate) && paginate.length && paginate[0].totalDocs) || 0
       setResPaginateData({ ...resPaginateData, totalDocs: totalData, totalPages: Math.ceil(totalData / paginationData.recordPerPage) })
-      setOTPData(docs)
+      setOTPData(Array.isArray(docs) ? docs : [])
+    } finally {
       setIsLoading(false)
-    })
+    }
   }
   useEffect(() => {
     fetchOtpLogReport()
-  }, [paginationData, isSubmitting])
+  }, [paginationData])
 
-  const handleOnExport = async () => {
-    var wb = XLSX.utils.book_new(),
-      ws = XLSX.utils.json_to_sheet(otpData);
-    XLSX.utils.book_append_sheet(wb, ws, "Data");
-    XLSX.writeFile(wb, "otps.xlsx");
+  const handleOnExport = () => {
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(otpData)
+    XLSX.utils.book_append_sheet(wb, ws, 'Data')
+    XLSX.writeFile(wb, 'otps.xlsx')
   }
 
-  const handleFormSubmit = async () => {
+  const mobileValid = /^\d{10}$/.test(mobile)
+  const handleSendOtp = async () => {
+    if (!mobileValid) return
+    setIsSending(true)
+    setSendStatus(null)
     try {
-      backendNewOtpRequest(formik.values).then((result) => {
-        if (!result.isError) {
-          setIsSubmitting(true)
-        }
-      }).catch((err) => {
-
-      });
+      const result = await backendNewOtpRequest({ mobile })
+      if (!result?.isError) {
+        setSendStatus({ type: 'success', text: `OTP sent to ${mobile}.` })
+        setMobile('')
+        fetchOtpLogReport()
+      } else {
+        setSendStatus({ type: 'danger', text: result.message || 'OTP could not be sent.' })
+      }
+    } catch (error: any) {
+      setSendStatus({ type: 'danger', text: error?.response?.data?.message || 'OTP could not be sent.' })
+    } finally {
+      setIsSending(false)
     }
-    catch (e) {
-      console.log(e, "Error in the Login");
-    }
-  };
+  }
 
-  const formik = useFormik({
-    initialValues: { mobile: '' },
-    enableReinitialize: true,
-    validationSchema: schema,
-    onSubmit: handleFormSubmit
-  });
+  const total = Number(resPaginateData.totalDocs) || 0
+  const perPage = Number(paginationData.recordPerPage) || 100
+  const from = total ? (paginationData.currentPage - 1) * perPage + 1 : 0
+  const to = Math.min(paginationData.currentPage * perPage, total)
+
   return (
     <Layout>
-      <BreadcrumbComponent firstItem={{ href: '/dashboard', label: 'Home' }} secondItem={{ href: '', label: '' }} itemlabel='Transaction List' />
-      <Row>
-        <Col xl={12} md={12}>
-          <Row className="align-items-center mb-4">
-          <Col sm={6}> </Col>
-          <Col sm={6}>
-              <Form.Group>
-                <Form.Label>
-                  Mobile
-                </Form.Label>
-                <InputGroup className="mb-3">
-                  <Form.Control
-                    type="number"
-                    name="mobile"
-                    onChange={(e) => {
-                      setIsSubmitting(false)
-                      formik.setFieldValue('mobile', e.target.value);
-                    }}
-                    value={formik.values.mobile}
-                    required={true}
-                    autoComplete="off"
-                    placeholder="Enter Mobile"
-                  />
-                  <InputGroup.Text className='bg-light'>
-                    <Button className="btn btn-dark"
-                      disabled={!(formik.isValid && formik.dirty)}
-                      onClick={() => {
-                        if (formik.isValid) {
-                          formik.setSubmitting(true)
-                          formik.handleSubmit();
-                        }
-                      }}>Send OTP </Button>
+      <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+        <div>
+          <h3 className="mb-1">OTP Log</h3>
+          <div className="text-muted small">{total.toLocaleString('en-IN')} OTP requests{paginationData.search ? ' match the search' : ''}</div>
+        </div>
+        <Button className="cd-btn cd-btn-outline" onClick={handleOnExport} title="Exports the rows on this page">
+          <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export
+        </Button>
+      </div>
 
-                  </InputGroup.Text>
-                </InputGroup>
-              </Form.Group>
-            </Col>
-            <Col md={4}>
-              <h3 className="card-body">OTPRequest List({resPaginateData.totalDocs})</h3>
-            </Col>
-            <Col md={3}>
-              <Form.Group className="d-flex align-items-center mb-0">
-                <Form.Label className='p-2'>Show</Form.Label>
-                <Form.Select value={paginationData.recordPerPage} onChange={(e: any) => { setPaginationData({ ...paginationData, recordPerPage: e.target.value }) }}>
-                  <option value={100}>{100}</option>
-                  <option value={200}>{200}</option>
-                  <option value={500}>{500}</option>
-                  <option value={1000}>{1000}</option>
-                  <option value={2000}>{2000}</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
-            <Col md={4} className='text-end'>
-              <Form.Group className="form-group">
-                <Form.Label></Form.Label>
-                <Form.Control
-                  type="text"
-                  onChange={(e) => { setPaginationData({ ...paginationData, search: e.target.value }) }}
-                  value={paginationData.search}
-                  autoComplete='off'
-                  placeholder='Search'
-                />
-              </Form.Group>
-            </Col>
-            <Col md={1} className="text-end mb-3">
-              <Button onClick={handleOnExport} className="p-2 pr-2" variant="outline-light"><Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} /> Export</Button>
-            </Col>
-            <Card className="flat-card p-0">
-              <div className="row-table">
-                <Col sm={12} md={12}>
-                  <div className="card1">
-                    <div className="table-border-style">
-                      <div className="table-responsive">
-                        <Table>
-                          <thead>
-                            <tr>
-                              {/* <th>#</th> */}
-                              <th>Date</th>
-                              <th>Mobile</th>
-                              <th>OTP</th>
-                              <th>Firm Name</th>
-                              <th>Contact Person</th>
-                              <th>State</th>
-                              <th>City</th>
-                              <th>Login Time</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {Array.isArray(otpData) && otpData.map((item, index) => {
-                              return (
-                                <tr key={index}>
-                                  <td>{item.createdAt}</td>
-                                  <td className="text-black">
-                                    {item.mobile}
-                                  </td>
-                                  <td className="text-black">
-                                    {item.otp}
-                                  </td>
-                                  <td>{item.firmName}</td>
-                                  <td>{item.contactPerson}</td>
-                                  <td>{item.state}</td>
-                                  <td>{item.city}</td>
-                                  <td>{item.loginAt}</td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </Table>
-                        <Row>
-                          <Col xl={12} sm={12} xs={12} className='mb-3 text-end'>
-                            <nav aria-label="Page navigation example">
-                              <ul className="pagination justify-content-end">
-                                <li className={`page-item ${paginationData.currentPage === 1 ? 'disabled' : ''}`}>
-                                  <a className="page-link" onClick={() => {
-                                    setPaginationData({ ...paginationData, currentPage: paginationData.currentPage - 1 })
-                                    router.push(`/reports/otprequest/?page=${paginationData.currentPage - 1}`);
-                                  }
-                                  }>Previous</a>
-                                </li>
+      <div className="tx-card mb-3">
+        <div className="fw-semibold mb-1">Send OTP</div>
+        <div className="small text-muted mb-2">Sends a login OTP to a customer's mobile number.</div>
+        {sendStatus ? (
+          <Alert variant={sendStatus.type} className="py-2" dismissible onClose={() => setSendStatus(null)}>{sendStatus.text}</Alert>
+        ) : null}
+        <InputGroup style={{ maxWidth: 420 }}>
+          <InputGroup.Text><Phone /></InputGroup.Text>
+          <Form.Control
+            inputMode="numeric"
+            value={mobile}
+            onChange={(e) => { setSendStatus(null); setMobile(e.target.value.replace(/\D/g, '').slice(0, 10)) }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleSendOtp() }}
+            autoComplete="off"
+            placeholder="10 digit mobile number"
+            isInvalid={!!mobile && !mobileValid}
+          />
+          <Button variant="dark" disabled={!mobileValid || isSending} onClick={handleSendOtp}>
+            {isSending ? <Spinner animation="border" size="sm" /> : <Send />} Send OTP
+          </Button>
+        </InputGroup>
+        {mobile && !mobileValid ? <div className="small text-danger mt-1">Enter a 10 digit mobile number</div> : null}
+      </div>
 
-                                <li className={`page-item ${paginationData.currentPage === resPaginateData.totalPages ? 'disabled' : ''}`}>
-                                  <a className="page-link"
-                                    onClick={() => {
-                                      setPaginationData({ ...paginationData, currentPage: paginationData.currentPage + 1 })
-                                      router.push(`/reports/otprequest/?page=${paginationData.currentPage + 1}`);
-                                    }
-                                    }>Next</a>
-                                </li>
-                              </ul>
-                            </nav>
-                          </Col>
-                        </Row>
-                      </div>
-                    </div>
-                  </div>
-                </Col>
-                {(isLoading) ? <Col xl={12} sm={12} xs={12} className='mb-3 text-center'><Spinner animation="border" /></Col> : null}
-              </div>
-            </Card>
-          </Row>
-        </Col>
-      </Row>
+      <div className="tx-card">
+        <div className="d-flex flex-wrap align-items-center gap-2 mb-3">
+          <InputGroup className="tx-search">
+            <InputGroup.Text><Search /></InputGroup.Text>
+            <Form.Control
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              autoComplete="off"
+              placeholder="Search mobile, firm, contact person…"
+            />
+            {searchText ? <Button variant="outline-secondary" onClick={() => setSearchText('')} title="Clear search"><X /></Button> : null}
+          </InputGroup>
+        </div>
+
+        <div className="tx-table-wrap">
+          <Table hover className="mb-0 tx-table">
+            <thead>
+              <tr>
+                <th>Requested</th>
+                <th>Mobile</th>
+                <th>OTP</th>
+                <th>Customer</th>
+                <th>Location</th>
+                <th>Login</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={6} className="text-center py-5"><Spinner animation="border" size="sm" /></td></tr>
+              ) : otpData.length ? (
+                otpData.map((item: any, index: number) => (
+                  <tr key={item._id || index}>
+                    <td className="text-nowrap">{formatDate(item.createdAt) || '-'}</td>
+                    <td className="fw-semibold text-nowrap">{item.mobile || '-'}</td>
+                    <td><span className="otp-code">{item.otp || '-'}</span></td>
+                    <td>
+                      <div className="tx-firm">{item.firmName || <span className="text-muted fw-normal">Not registered</span>}</div>
+                      {item.contactPerson ? <div className="tx-sub">{item.contactPerson}</div> : null}
+                    </td>
+                    <td>{[item.city, item.state].filter(Boolean).join(', ') || '-'}</td>
+                    <td className="text-nowrap">
+                      {item.loginAt
+                        ? <><Badge bg="success" className="rd-status">Logged in</Badge><div className="tx-sub">{formatDate(item.loginAt)}</div></>
+                        : <Badge bg="light" text="dark" className="border rd-status">Not used</Badge>}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr><td colSpan={6} className="text-center text-muted py-5">No OTP requests found</td></tr>
+              )}
+            </tbody>
+          </Table>
+        </div>
+
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+          <div className="d-flex align-items-center gap-2 small text-muted">
+            <span>Showing {from.toLocaleString('en-IN')}–{to.toLocaleString('en-IN')} of {total.toLocaleString('en-IN')}</span>
+            <span className="ms-2">Rows</span>
+            <Form.Select
+              size="sm"
+              style={{ width: 90 }}
+              value={paginationData.recordPerPage}
+              onChange={(e: any) => setPaginationData({ ...paginationData, currentPage: 1, recordPerPage: e.target.value })}
+            >
+              {[50, 100, 200, 500, 1000, 2000].map((n) => <option key={n} value={n}>{n}</option>)}
+            </Form.Select>
+          </div>
+          <PaginationNav
+            align="end"
+            currentPage={paginationData.currentPage}
+            totalPages={resPaginateData.totalPages}
+            disabled={isLoading}
+            onPageChange={(page) => setPaginationData({ ...paginationData, currentPage: page })}
+          />
+        </div>
+      </div>
     </Layout>
   )
 })

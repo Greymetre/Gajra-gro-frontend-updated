@@ -1,98 +1,220 @@
-import React, { useEffect, useState } from "react";
-import Router, { useRouter } from "next/router";
-import {
-    Button,
-    Container,
-    Row,
-    Col,
-    Form,
-    Card,
-    FormLabel,
-    Image,
-    InputGroup,
-    Spinner
-} from "react-bootstrap";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Badge, Button, Col, Form, InputGroup, Row, Spinner, Table } from "react-bootstrap";
+import { CheckLg, PersonPlus, Search, ShieldLock, Trash } from "react-bootstrap-icons";
 import { useDispatch, useSelector } from "react-redux";
 import BreadcrumbComponent from "../../components/Common/BreadcrumbComponent";
 import Layout from "../../components/Layout";
-import { initialPermissionRenderData, initialRolePermission, initialSettingData, PermissionRenderInterface, SettingInterface } from "../../interfaces/setting.interface";
-import { settingFormValidation } from "../../validations/setting.validation";
-import { backendGetPermissions, backendGetRolePermissions, backendUpdateRolePermission, getUserRoleList, } from "../../helpers/backend_helper";
 import {
-    BLACK_PLUS_CIRCLE_IMAGE, BLUE_PLUS_CIRCLE_IMAGE,
-    CUSTOMER_DEMO_IMAGE, IMAGE_URL, WHITE_CHECKED_IMAGE,
-} from "../../utils/constant";
-import { useFormik, FieldArray } from "formik";
-import * as yup from "yup";
-const schema = yup.array().of(
-    yup.object().shape({
-        role: yup.string().required(`require feild`),
-        canAccess: yup.array().required(`require field`),
-    })
-);
+    backendGetPermissions,
+    backendGetRolePermissions,
+    backendGetUserPermissions,
+    backendUpdateRolePermission,
+} from "../../helpers/backend_helper";
+
+interface RolePermission {
+    role: string;
+    canAccess: string[];
+    isNew?: boolean;
+}
+
+// Matrix columns; anything else (approver, plants, reports...) is shown as a named switch in "Other"
+const ACTIONS = ["read", "create", "update", "delete", "export", "import"];
+
+const MODULE_LABELS: Record<string, string> = {
+    dashboard: "Dashboard",
+    users: "Users",
+    customers: "Customers",
+    transactions: "Transactions",
+    redemptions: "Redemptions",
+    loyaltyscheme: "Loyalty Scheme",
+    gift: "Gifts",
+    coupons: "QR Coupons",
+    products: "Products",
+    category: "Category",
+    subcategory: "Sub Category",
+    reports: "Reports",
+    setting: "Settings",
+    permission: "Permissions",
+    address: "Address",
+    callsummary: "Call Summary",
+    news: "News",
+};
+
+const OTHER_LABELS: Record<string, string> = {
+    kycapprover: "KYC approver",
+    payeeapprover: "Payee approver",
+    approver: "Approver",
+    transfer: "Transfer",
+    delhi: "Delhi plant",
+    dewas: "Dewas plant",
+    kshipra: "Kshipra plant",
+    search: "Search",
+    damageentryscan: "Damage entry scan",
+    otprequest: "OTP log",
+    cashfree: "Cashfree report",
+    send: "Send",
+};
+
+const labelOf = (module: string) => MODULE_LABELS[module] || module.charAt(0).toUpperCase() + module.slice(1);
+const actionOf = (permission: string) => permission.slice(permission.indexOf(".") + 1);
+const sameRoles = (a: RolePermission[], b: RolePermission[]) =>
+    JSON.stringify(a.map((r) => [r.role.trim(), [...r.canAccess].sort()])) ===
+    JSON.stringify(b.map((r) => [r.role.trim(), [...r.canAccess].sort()]));
+
 export default function SettingPermission() {
-    const [isLoading, setIsLoading] = useState(true)
-    const [isLoadingUserPermission, setIsLoadingUserPermission] = useState(true)
-    const [permissions, setPermissions] = useState<PermissionRenderInterface>(initialPermissionRenderData)
-    const permissionData = useSelector((state: any) => state?.permission?.permission);
-    const moduleAccess = Array.isArray(permissionData) && Array.isArray(permissionData) && permissionData.reduce((acc: any, item: any) => {
-        switch (item) {
-            case 'permission.read':
-                return { ...acc, canRead: true };
-            case 'permission.update':
-                return { ...acc, canUpdate: true };
-            default:
-                return acc;
+    const dispatch = useDispatch();
+    const myPermissions = useSelector((state: any) => state?.permission?.permission);
+    const canUpdate = Array.isArray(myPermissions) && myPermissions.includes("permission.update");
+
+    const [allPermissions, setAllPermissions] = useState<string[]>([]);
+    const [saved, setSaved] = useState<RolePermission[]>([]);
+    const [roles, setRoles] = useState<RolePermission[]>([]);
+    const [selected, setSelected] = useState(0);
+    const [search, setSearch] = useState("");
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [message, setMessage] = useState<{ type: "success" | "danger"; text: string } | null>(null);
+
+    const load = async () => {
+        setIsLoading(true);
+        try {
+            const [permRes, roleRes] = await Promise.all([backendGetPermissions(), backendGetRolePermissions()]);
+            const list: string[] = Array.isArray(permRes?.data) ? permRes.data : [];
+            const roleList: RolePermission[] = (Array.isArray(roleRes?.data) ? roleRes.data : []).map((r: any) => ({
+                role: String(r?.role || ""),
+                canAccess: Array.isArray(r?.canAccess) ? r.canAccess : [],
+            }));
+            setAllPermissions(list);
+            setSaved(roleList);
+            setRoles(roleList);
+            setSelected((index) => Math.min(index, Math.max(roleList.length - 1, 0)));
+        } catch (error: any) {
+            setMessage({ type: "danger", text: error?.response?.data?.message || "Unable to load permissions" });
+        } finally {
+            setIsLoading(false);
         }
-    }, {});
-    const handleInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value, type } = event.target;
-        formik.setFieldValue(name, value);
     };
-    const handleFormSubmit = async () => {
-        backendUpdateRolePermission(formik.values).then((result) => {
-            if (!result.isError) {
 
-            }
-        }).catch((err) => {
+    useEffect(() => { load(); }, []);
 
-        });
-    };
-    const formik = useFormik({
-        initialValues: initialRolePermission,
-        validationSchema: schema,
-        onSubmit: handleFormSubmit,
-        enableReinitialize: true,
-    });
-    const fetchPermissions = async () => {
-        await backendGetPermissions().then(async (res) => {
-            if (res.isError == false && res.data) {
-                const { data } = res
-                const grouped = data.reduce((acc: any, str: string) => {
-                    const index = str.indexOf(".");
-                    const key = index !== -1 ? str.substring(0, index) : str;
-                    acc[key] = [...(acc[key] || []), str];
-                    return acc;
-                }, {});
-                await setPermissions(grouped);
-                setIsLoading(false)
-            }
-        });
-    };
-    const fetchRolePermissions = async () => {
-        await backendGetRolePermissions().then((res) => {
-            if (res.isError == false) {
-                formik.setValues(res.data)
-            }
-            setIsLoadingUserPermission(false)
-        });
-    };
+    const isDirty = !sameRoles(roles, saved);
     useEffect(() => {
-        fetchPermissions();
-        fetchRolePermissions();
-    }, []);
-    console.log(isLoading);
-    
+        const warn = (event: BeforeUnloadEvent) => {
+            if (!isDirty) return;
+            event.preventDefault();
+            event.returnValue = "";
+        };
+        window.addEventListener("beforeunload", warn);
+        return () => window.removeEventListener("beforeunload", warn);
+    }, [isDirty]);
+
+    // { module: { actions: {read: 'x.read', ...}, other: ['x.approver', ...] } } in the order the server lists them
+    const modules = useMemo(() => {
+        const grouped: Record<string, { actions: Record<string, string>; other: string[] }> = {};
+        allPermissions.forEach((permission) => {
+            const module = permission.split(".")[0];
+            grouped[module] = grouped[module] || { actions: {}, other: [] };
+            const action = actionOf(permission);
+            if (ACTIONS.includes(action)) grouped[module].actions[action] = permission;
+            else grouped[module].other.push(permission);
+        });
+        return Object.entries(grouped);
+    }, [allPermissions]);
+
+    const visibleModules = modules.filter(([module, group]) => {
+        const term = search.trim().toLowerCase();
+        if (!term) return true;
+        return labelOf(module).toLowerCase().includes(term) ||
+            [...Object.values(group.actions), ...group.other].some((p) => p.includes(term) || (OTHER_LABELS[actionOf(p)] || "").toLowerCase().includes(term));
+    });
+
+    const role = roles[selected];
+    const has = (permission: string) => !!role?.canAccess.includes(permission);
+    const known = new Set(allPermissions);
+    const oldPermissions = role ? role.canAccess.filter((p) => !known.has(p)) : [];
+
+    const updateRole = (change: (current: RolePermission) => RolePermission) => {
+        setMessage(null);
+        setRoles((list) => list.map((item, index) => (index === selected ? change(item) : item)));
+    };
+
+    const setMany = (permissions: string[], on: boolean) =>
+        updateRole((current) => ({
+            ...current,
+            canAccess: on
+                ? Array.from(new Set([...current.canAccess, ...permissions]))
+                : current.canAccess.filter((p) => !permissions.includes(p)),
+        }));
+
+    const addRole = () => {
+        setRoles((list) => [...list, { role: "", canAccess: [], isNew: true }]);
+        setSelected(roles.length);
+        setSearch("");
+        setMessage(null);
+    };
+
+    const removeRole = () => {
+        if (!role) return;
+        if (!role.isNew && !window.confirm(`Remove role "${role.role}"? It is saved only when you press Save, and only if no user has this role.`)) return;
+        setRoles((list) => list.filter((_, index) => index !== selected));
+        setSelected((index) => Math.max(index - 1, 0));
+        setMessage(null);
+    };
+
+    const discard = () => {
+        setRoles(saved);
+        setSelected((index) => Math.min(index, Math.max(saved.length - 1, 0)));
+        setMessage(null);
+    };
+
+    const save = async () => {
+        const names = roles.map((r) => r.role.trim().toLowerCase());
+        const emptyIndex = names.findIndex((name) => !name);
+        if (emptyIndex !== -1) {
+            setSelected(emptyIndex);
+            setMessage({ type: "danger", text: "Please enter a name for the new role." });
+            return;
+        }
+        const duplicate = names.find((name, index) => names.indexOf(name) !== index);
+        if (duplicate) {
+            setMessage({ type: "danger", text: `Role "${duplicate}" is added twice.` });
+            return;
+        }
+        setIsSaving(true);
+        setMessage(null);
+        try {
+            const res = await backendUpdateRolePermission(roles.map(({ role: name, canAccess }) => ({ role: name.trim(), canAccess })));
+            if (res?.isError) throw { response: { data: res } };
+            await load();
+            setMessage({ type: "success", text: "Permissions saved. Users get the new permissions on their next page load." });
+            // refresh this user's own menu right away
+            const mine = await backendGetUserPermissions().catch(() => null);
+            if (mine && !mine.isError && Array.isArray(mine.data?.canAccess)) {
+                dispatch({ type: "GET_PERMISSION", payload: mine.data.canAccess });
+            }
+        } catch (error: any) {
+            setMessage({ type: "danger", text: error?.response?.data?.message || "Unable to save permissions" });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const renderCheck = (permission: string | undefined, label?: string) => {
+        if (!permission) return <span className="text-muted">–</span>;
+        return (
+            <Form.Check
+                type="checkbox"
+                id={`perm-${selected}-${permission}`}
+                className="pm-check"
+                checked={has(permission)}
+                disabled={!canUpdate}
+                onChange={(event) => setMany([permission], event.target.checked)}
+                label={label}
+                title={permission}
+            />
+        );
+    };
+
     return (
         <Layout>
             <BreadcrumbComponent
@@ -100,135 +222,157 @@ export default function SettingPermission() {
                 secondItem={{ href: "/setting", label: "Setting" }}
                 itemlabel="Permission"
             />
-            <Row>
-                <Col xl={12} md={12}>
-                    <Row className="align-items-center mb-4">
-                        <Col md={6} className="mb-3">
-                            <h3 className="card-body mb-0">Permission</h3>
-                        </Col>
-                        {(!isLoading && !isLoadingUserPermission) ?
-                            <Card className="flat-card">
 
-                                <Form>
-                                    <Row className="align-items-center card-body">
-                                        <Col xl={12} md={12} className="text-end">
-                                            <Button className="btn btn-dark"
-                                                disabled={!formik.isValid}
-                                                onClick={() => {
-                                                    if (formik.isValid) {
-                                                        formik.handleSubmit();
-                                                    }
-                                                    else {
-                                                        console.log("is invalid", !formik.isValid)
-                                                    }
-                                                }}
-                                            >  <Image src={IMAGE_URL + WHITE_CHECKED_IMAGE} />Save </Button>
+            <div className="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+                <div>
+                    <h3 className="mb-1">Roles &amp; Permissions</h3>
+                    <div className="text-muted small">Pick a role on the left, tick what it can do, then Save.</div>
+                </div>
+                {canUpdate ? (
+                    <div className="d-flex align-items-center gap-2">
+                        {isDirty ? <Badge bg="warning" text="dark">Unsaved changes</Badge> : null}
+                        <Button className="cd-btn cd-btn-outline" disabled={!isDirty || isSaving} onClick={discard}>
+                            Discard
+                        </Button>
+                        <Button variant="dark" className="cd-btn" disabled={!isDirty || isSaving} onClick={save}>
+                            {isSaving ? <Spinner animation="border" size="sm" /> : <CheckLg />} Save
+                        </Button>
+                    </div>
+                ) : null}
+            </div>
 
-                                        </Col>
-                                        {
-                                            formik.values.map((permission, index: number) => (
-                                                <Row key={index}>
-                                                    <Col md={6} sm={6} xs={10}>
-                                                        <Form.Label htmlFor="endedAt">Role Name</Form.Label>
-                                                        <Form.Control
-                                                            name={`[${index}].role`}
-                                                            value={formik.values[index].role}
-                                                            onChange={handleInputChange}
-                                                            required={true} className="mb-1"
-                                                            autoComplete='off'
-                                                            placeholder='Enter Role Name'
-                                                        />
-                                                    </Col>
-                                                    <Col md={12} sm={12} xs={12}>
-                                                        {
-                                                            Object.entries(permissions).map(([key, value], i) => {
-                                                                return <Row key={key}>
-                                                                    <Form.Label className="align-items-center m-4">{key.toUpperCase()}</Form.Label>
-                                                                    {value.map((permission: string) => {
-                                                                        return (<Col md={3} className="mb-2">
-                                                                            <Form.Check
-                                                                                inline
-                                                                                className="form-check"
-                                                                                name="canAccess"
-                                                                                type="checkbox"
-                                                                                value={permission}
-                                                                                label={permission}
-                                                                                onChange={(e) => {
-                                                                                    const { checked } = e.target;
-                                                                                    var permCanAccess = (formik.values[index].canAccess) ? JSON.parse(JSON.stringify(formik.values[index].canAccess)) : [];
-                                                                                    if (checked) {
-                                                                                        permCanAccess.push(e.target.value);
-                                                                                    }
-                                                                                    else {
-                                                                                        permCanAccess = permCanAccess.filter(function (item: string) {
-                                                                                            return item !== e.target.value
-                                                                                        })
-                                                                                    }
-                                                                                    formik.setFieldValue(`[${index}][canAccess]`,
-                                                                                        Array.from(new Set(permCanAccess))
-                                                                                    );
-                                                                                }}
-                                                                                defaultChecked={Array.isArray(formik.values[index].canAccess) ? formik.values[index].canAccess.some((type) => type == permission) : false}
-                                                                            />
-                                                                        </Col>)
-                                                                    })}
-                                                                </Row>
-                                                            })
-                                                        }
-                                                        {Array.isArray(permissions) && permissions.map((permission) => {
-                                                            return (<Row key={index + '_' + permission}><Form.Check
-                                                                inline
-                                                                className="form-check"
-                                                                name="canAccess"
+            {message ? (
+                <Alert variant={message.type} dismissible onClose={() => setMessage(null)}>{message.text}</Alert>
+            ) : null}
+            {!canUpdate && !isLoading ? (
+                <Alert variant="secondary"><ShieldLock /> View only: you need the permission.update permission to change roles.</Alert>
+            ) : null}
+
+            {isLoading ? (
+                <div className="text-center py-5"><Spinner animation="border" /></div>
+            ) : (
+                <Row className="g-3">
+                    <Col lg={3}>
+                        <div className="pm-card">
+                            <div className="pm-card-title">Roles</div>
+                            <div className="pm-role-list">
+                                {roles.map((item, index) => {
+                                    const changed = !saved.some((s) => s.role === item.role && sameRoles([s], [item]));
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={index}
+                                            className={`pm-role ${index === selected ? "active" : ""}`}
+                                            onClick={() => { setSelected(index); setMessage(null); }}
+                                        >
+                                            <span className="pm-role-name">{item.role.trim() || "New role"}</span>
+                                            <span className="pm-role-meta">
+                                                {item.canAccess.length} permissions
+                                                {item.isNew ? <Badge bg="info" className="ms-2">New</Badge> : changed ? <Badge bg="warning" text="dark" className="ms-2">Edited</Badge> : null}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {canUpdate ? (
+                                <Button className="cd-btn cd-btn-outline w-100 mt-2" onClick={addRole}>
+                                    <PersonPlus /> Add role
+                                </Button>
+                            ) : null}
+                        </div>
+                    </Col>
+
+                    <Col lg={9}>
+                        {role ? (
+                            <div className="pm-card">
+                                <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                                    <div className="flex-grow-1" style={{ maxWidth: 360 }}>
+                                        {role.isNew ? (
+                                            <Form.Control
+                                                autoFocus
+                                                placeholder="Role name, e.g. Sales Manager"
+                                                value={role.role}
+                                                maxLength={50}
+                                                onChange={(event) => updateRole((current) => ({ ...current, role: event.target.value }))}
+                                            />
+                                        ) : (
+                                            <>
+                                                <div className="pm-editing-label">Editing role</div>
+                                                <h5 className="mb-0">{role.role}</h5>
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="d-flex flex-wrap gap-2">
+                                        <InputGroup size="sm" style={{ width: 220 }}>
+                                            <InputGroup.Text><Search /></InputGroup.Text>
+                                            <Form.Control placeholder="Search module" value={search} onChange={(e) => setSearch(e.target.value)} />
+                                        </InputGroup>
+                                        {canUpdate ? (
+                                            <>
+                                                <Button size="sm" className="cd-btn-outline" onClick={() => setMany(allPermissions, true)}>Select all</Button>
+                                                <Button size="sm" className="cd-btn-outline" onClick={() => setMany(allPermissions, false)}>Clear all</Button>
+                                                <Button size="sm" variant="outline-danger" onClick={removeRole}><Trash /> Remove role</Button>
+                                            </>
+                                        ) : null}
+                                    </div>
+                                </div>
+
+                                <div className="pm-table-wrap">
+                                    <Table className="mb-0 pm-table" hover>
+                                        <thead>
+                                            <tr>
+                                                <th>Module</th>
+                                                <th className="text-center">All</th>
+                                                {ACTIONS.map((action) => <th key={action} className="text-center text-capitalize">{action}</th>)}
+                                                <th>Other</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {visibleModules.map(([module, group]) => {
+                                                const all = [...Object.values(group.actions), ...group.other];
+                                                const count = all.filter(has).length;
+                                                return (
+                                                    <tr key={module}>
+                                                        <td className="fw-semibold text-nowrap">{labelOf(module)}</td>
+                                                        <td className="text-center">
+                                                            <Form.Check
                                                                 type="checkbox"
-                                                                value={permission}
-                                                                label={permission}
-                                                                onChange={(e) => {
-                                                                    const { value, checked } = e.target;
-                                                                    var permCanAccess = (formik.values[index].canAccess) ? JSON.parse(JSON.stringify(formik.values[index].canAccess)) : [];
-                                                                    if (checked) {
-                                                                        permCanAccess.push(value);
-                                                                    }
-                                                                    else {
-                                                                        permCanAccess = permCanAccess.filter(function (item: string) {
-                                                                            return item !== value
-                                                                        })
-                                                                    }
-
-                                                                    formik.setFieldValue(`[${index}][canAccess]`,
-                                                                        Array.from(new Set(permCanAccess))
-                                                                    );
-                                                                }}
-                                                                defaultChecked={Array.isArray(formik.values[index].canAccess) ? formik.values[index].canAccess.some((type) => type == permission) : false}
-                                                            /></Row>)
-                                                        })}
-                                                    </Col>
-                                                </Row>
-                                            ))
-                                        }
-                                    </Row>
-                                    <Row className='align-items-end mt-5'>
-                                        <Col xl={12} md={12} className="text-end">
-                                            <div onClick={() => {
-                                                const newRole = [
-                                                    ...formik.values,
-                                                    {
-                                                        role: '',
-                                                        canAccess: []
-                                                    }
-                                                ];
-                                                formik.setValues(newRole);
-                                            }}
-                                            ><Image src={IMAGE_URL + BLACK_PLUS_CIRCLE_IMAGE} /> </div>
-                                        </Col>
-                                    </Row>
-                                </Form>
-                            </Card>
-                            : <Spinner animation="border" />
-                        }
-                    </Row>
-                </Col>
-            </Row>
+                                                                className="pm-check"
+                                                                checked={count === all.length}
+                                                                ref={(el: HTMLInputElement | null) => { if (el) el.indeterminate = count > 0 && count < all.length; }}
+                                                                disabled={!canUpdate}
+                                                                onChange={(event) => setMany(all, event.target.checked)}
+                                                                title={`All ${labelOf(module)} permissions`}
+                                                            />
+                                                        </td>
+                                                        {ACTIONS.map((action) => <td key={action} className="text-center">{renderCheck(group.actions[action])}</td>)}
+                                                        <td>
+                                                            <div className="d-flex flex-wrap gap-3">
+                                                                {group.other.map((permission) => (
+                                                                    <span key={permission}>{renderCheck(permission, OTHER_LABELS[actionOf(permission)] || actionOf(permission))}</span>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {!visibleModules.length ? (
+                                                <tr><td colSpan={ACTIONS.length + 3} className="text-center text-muted py-4">No module matches "{search}"</td></tr>
+                                            ) : null}
+                                        </tbody>
+                                    </Table>
+                                </div>
+                                <div className="small text-muted mt-2">
+                                    {role.canAccess.filter((p) => known.has(p)).length} of {allPermissions.length} permissions selected
+                                    {oldPermissions.length ? ` · ${oldPermissions.length} older permission(s) kept as they are` : ""}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="pm-card text-center text-muted py-5">No roles yet. Use Add role.</div>
+                        )}
+                    </Col>
+                </Row>
+            )}
         </Layout>
     );
 }

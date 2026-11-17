@@ -4993,3 +4993,25 @@ color:black !important;
 .cf-badge { font-weight: 600; font-size: 11px; letter-spacing: .02em; }
 .min-w-0 { min-width: 0; }
       
+
+/* Roles & Permissions page */
+.pm-card { background: #fff; border-radius: 16px; box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06); padding: 16px; height: 100%; }
+.pm-card-title { font-size: 12px; font-weight: 600; color: #667085; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.pm-role-list { display: flex; flex-direction: column; gap: 4px; max-height: 60vh; overflow: auto; }
+.pm-role { display: flex; flex-direction: column; align-items: flex-start; text-align: left; width: 100%; border: 1px solid transparent;
+  background: transparent; border-radius: 10px; padding: 10px 12px; }
+.pm-role:hover { background: #f8f9fb; }
+.pm-role.active { background: #111; color: #fff; }
+.pm-role.active .pm-role-meta { color: #d0d5dd; }
+.pm-role-name { font-weight: 600; }
+.pm-role-meta { font-size: 12px; color: #667085; }
+.pm-editing-label { font-size: 12px; color: #667085; }
+.pm-table-wrap { max-height: 65vh; overflow: auto; border: 1px solid #eceef2; border-radius: 12px; }
+.pm-table { font-size: 13px; }
+.pm-table thead th { position: sticky; top: 0; z-index: 1; background: #f8f9fb; color: #475467; font-weight: 600; font-size: 12px;
+  border-bottom: 1px solid #eceef2; padding: 10px 12px; white-space: nowrap; }
+.pm-table tbody td { padding: 8px 12px; vertical-align: middle; border-color: #f2f4f7; }
+.pm-check { margin: 0; min-height: 0; display: inline-flex; align-items: center; gap: 6px; }
+.pm-check .form-check-input { margin: 0; cursor: pointer; width: 1.1em; height: 1.1em; }
+.pm-check .form-check-label { white-space: nowrap; cursor: pointer; }
+.pm-table td.text-center .pm-check { justify-content: center; }

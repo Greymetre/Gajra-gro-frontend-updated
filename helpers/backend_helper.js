@@ -646,4 +646,5 @@ export const backendGetNewsHistory = (params) => get(url.NEWS_HISTORY, { params 
 export const backendDeleteNews = (id) => del(`${url.NEWS_DELETE}/${id}`);
 export const backendSyncCashfreeAccountStatement = (data) => post(url.CASHFREE_STATEMENT_SYNC_ACCOUNT, data);
 export const backendGetCashfreeSyncStatus = () => get(url.CASHFREE_STATEMENT_SYNC_STATUS);
-export const backendGetCashfreeSummary = (refresh = false) => get(url.CASHFREE_STATEMENT_SUMMARY, { params: refresh ? { refresh: true } : {} });
+export const backendGetCashfreeBalance = (refresh = false) => get(url.CASHFREE_STATEMENT_BALANCE, { params: refresh ? { refresh: true } : {} });
+export const backendGetCashfreeTodayPayouts = () => get(url.CASHFREE_STATEMENT_TODAY_PAYOUTS);

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Alert, Badge, Button, Col, Form, Image, Modal, ProgressBar, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
-import { ArrowClockwise, ArrowDownLeft, ArrowRepeat, ArrowUpRight, Database, Download, Upload, Wallet2 } from 'react-bootstrap-icons'
+import { ArrowClockwise, ArrowRepeat, ArrowUpRight, Download, Upload, Wallet2 } from 'react-bootstrap-icons'
 import { utils, writeFile } from 'xlsx'
 import * as XLSX from 'xlsx'
 import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
@@ -12,7 +12,8 @@ import {
   backendImportCashfreeStatement,
   backendSyncCashfreeAccountStatement,
   backendGetCashfreeSyncStatus,
-  backendGetCashfreeSummary,
+  backendGetCashfreeBalance,
+  backendGetCashfreeTodayPayouts,
 } from '../../helpers/backend_helper'
 import { EXCEL_DEMO_IMAGE, IMAGE_URL } from '../../utils/constant'
 import { ACCOUNT_STATEMENT_HEADERS, TRANSFER_STATEMENT_HEADERS, downloadCashfreeReport } from '../../utils/cashfreeReport'
@@ -41,14 +42,17 @@ const formatDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'
 type StatementType = 'ACCOUNT' | 'TRANSFER'
 
-interface CashfreeSummary {
-  live: { balance: number; availableBalance: number; at: string } | null
-  liveError: string
-  statementBalance: number | null
-  statementBalanceAt: string | null
-  today: { date: string; payouts: number; payoutAmount: number; topups: number; topupAmount: number }
-  accountRows: number
-  transferRows: number
+interface CashfreeBalance {
+  live: boolean
+  balance: number | null
+  availableBalance: number | null
+  at: string | null
+}
+
+interface TodayPayouts {
+  date: string
+  payouts: number
+  amount: number
 }
 
 const AMOUNT_COLUMNS = [
@@ -130,19 +134,35 @@ const CashfreeReport = () => {
   const isSyncRunning = syncStatus?.status === 'running'
   // set when the API refuses access (no reports.cashfree permission)
   const [accessDenied, setAccessDenied] = useState(false)
-  const [summary, setSummary] = useState<CashfreeSummary | null>(null)
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false)
+  const [balance, setBalance] = useState<CashfreeBalance | null>(null)
+  const [isBalanceLoading, setIsBalanceLoading] = useState(false)
+  const [todayPayouts, setTodayPayouts] = useState<TodayPayouts | null>(null)
 
-  const loadSummary = async (refresh = false) => {
-    setIsSummaryLoading(true)
+  const loadBalance = async (refresh = false) => {
+    setIsBalanceLoading(true)
     try {
-      const res = await backendGetCashfreeSummary(refresh)
-      if (!res?.isError && res?.data) setSummary(res.data)
+      const res = await backendGetCashfreeBalance(refresh)
+      if (!res?.isError && res?.data) setBalance(res.data)
     } catch (error: any) {
       if (error?.response?.status === 403) setAccessDenied(true)
     } finally {
-      setIsSummaryLoading(false)
+      setIsBalanceLoading(false)
     }
+  }
+
+  const loadTodayPayouts = async () => {
+    try {
+      const res = await backendGetCashfreeTodayPayouts()
+      if (!res?.isError && res?.data) setTodayPayouts(res.data)
+    } catch (error: any) {
+      if (error?.response?.status === 403) setAccessDenied(true)
+    }
+  }
+
+  // balance and today's payouts load on their own, so a slow Cashfree answer never holds up the rest
+  const loadSummary = () => {
+    loadBalance()
+    loadTodayPayouts()
   }
 
   useEffect(() => { loadSummary() }, [])
@@ -432,12 +452,10 @@ const CashfreeReport = () => {
   }
 
   const renderBalanceCards = () => {
-    const live = summary?.live
-    const balance = live ? live.availableBalance : summary?.statementBalance
-    const today = summary?.today
+    const amount = balance?.availableBalance
     return (
       <Row className="g-3 mb-4">
-        <Col xl={4} md={6} xs={12}>
+        <Col lg={6} xs={12}>
           <div className="cd-stat cd-stat-green cf-wallet">
             <div className="cd-stat-icon"><Wallet2 size={22} color="#22a55b" /></div>
             <div className="flex-grow-1 min-w-0">
@@ -448,52 +466,38 @@ const CashfreeReport = () => {
                   size="sm"
                   className="p-0 text-muted"
                   title="Refresh balance"
-                  disabled={isSummaryLoading}
-                  onClick={() => loadSummary(true)}
+                  disabled={isBalanceLoading}
+                  onClick={() => loadBalance(true)}
                 >
-                  {isSummaryLoading ? <Spinner animation="border" size="sm" /> : <ArrowClockwise />}
+                  {isBalanceLoading ? <Spinner animation="border" size="sm" /> : <ArrowClockwise />}
                 </Button>
               </div>
               <div className="cd-stat-value">
-                {balance === null || balance === undefined ? (isSummaryLoading ? '…' : '-') : `₹ ${formatAmount(balance)}`}
+                {amount === null || amount === undefined
+                  ? (isBalanceLoading ? <Spinner animation="border" size="sm" /> : '-')
+                  : `₹ ${formatAmount(amount)}`}
               </div>
               <div className="cf-stat-note">
-                {live
-                  ? <>Live from Cashfree · {formatDateTime(live.at)}{live.balance !== live.availableBalance ? ` · Ledger ₹ ${formatAmount(live.balance)}` : ''}</>
-                  : summary
-                    ? <span className="text-warning-emphasis">{summary.liveError || 'Live balance not available'}{summary.statementBalanceAt ? ` · showing last statement balance (${formatStatementTime(summary.statementBalanceAt)})` : ''}</span>
-                    : 'Loading…'}
+                {!balance
+                  ? (isBalanceLoading ? 'Fetching from Cashfree…' : '')
+                  : balance.live
+                    ? <>Live from Cashfree · {formatDateTime(balance.at)}</>
+                    : <span className="text-warning-emphasis">Cashfree not reachable · last statement balance{balance.at ? ` (${formatStatementTime(balance.at)})` : ''}</span>}
               </div>
             </div>
           </div>
         </Col>
-        <Col xl={3} md={6} xs={12}>
+        <Col lg={6} xs={12}>
           <div className="cd-stat cd-stat-red">
             <div className="cd-stat-icon"><ArrowUpRight size={22} color="#d92d20" /></div>
             <div>
               <div className="cd-stat-label">Today's Payouts</div>
-              <div className="cd-stat-value">₹ {formatAmount(today?.payoutAmount || 0)}</div>
-              <div className="cf-stat-note">{(today?.payouts || 0).toLocaleString('en-IN')} payouts (as of last sync)</div>
-            </div>
-          </div>
-        </Col>
-        <Col xl={2} md={6} xs={12}>
-          <div className="cd-stat cd-stat-amber">
-            <div className="cd-stat-icon"><ArrowDownLeft size={22} color="#b98900" /></div>
-            <div>
-              <div className="cd-stat-label">Today's Top-ups</div>
-              <div className="cd-stat-value">₹ {formatAmount(today?.topupAmount || 0)}</div>
-              <div className="cf-stat-note">{(today?.topups || 0).toLocaleString('en-IN')} credits</div>
-            </div>
-          </div>
-        </Col>
-        <Col xl={3} md={6} xs={12}>
-          <div className="cd-stat cd-stat-blue">
-            <div className="cd-stat-icon"><Database size={20} color="#2e6be6" /></div>
-            <div>
-              <div className="cd-stat-label">Records in CRM</div>
-              <div className="cd-stat-value">{(summary?.accountRows ?? 0).toLocaleString('en-IN')}</div>
-              <div className="cf-stat-note">Account rows · {(summary?.transferRows ?? 0).toLocaleString('en-IN')} transfer rows</div>
+              <div className="cd-stat-value">
+                {todayPayouts ? `₹ ${formatAmount(todayPayouts.amount)}` : <Spinner animation="border" size="sm" />}
+              </div>
+              <div className="cf-stat-note">
+                {todayPayouts ? `${todayPayouts.payouts.toLocaleString('en-IN')} payouts · as of last sync` : ''}
+              </div>
             </div>
           </div>
         </Col>
@@ -592,10 +596,10 @@ const CashfreeReport = () => {
 
       <div className="cd-tabs-card">
         <Tabs activeKey={activeTab} onSelect={(key) => key && setActiveTab(key as StatementType)} className="cd-tabs">
-          <Tab eventKey="ACCOUNT" title={`Account Statement (${(summary?.accountRows ?? lists.ACCOUNT.totalDocs ?? 0).toLocaleString('en-IN')})`}>
+          <Tab eventKey="ACCOUNT" title={`Account Statement${lists.ACCOUNT.totalDocs ? ` (${lists.ACCOUNT.totalDocs.toLocaleString('en-IN')})` : ''}`}>
             {activeTab === 'ACCOUNT' ? renderList('ACCOUNT') : null}
           </Tab>
-          <Tab eventKey="TRANSFER" title={`Transfer Statement (${(summary?.transferRows ?? lists.TRANSFER.totalDocs ?? 0).toLocaleString('en-IN')})`}>
+          <Tab eventKey="TRANSFER" title={`Transfer Statement${lists.TRANSFER.totalDocs ? ` (${lists.TRANSFER.totalDocs.toLocaleString('en-IN')})` : ''}`}>
             {activeTab === 'TRANSFER' ? renderList('TRANSFER') : null}
           </Tab>
         </Tabs>

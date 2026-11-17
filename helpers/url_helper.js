@@ -220,4 +220,5 @@ export const NEWS_HISTORY = "/user/notifications/history";
 export const NEWS_DELETE = "/user/notifications";
 export const CASHFREE_STATEMENT_SYNC_ACCOUNT = "/user/cashfree-statement/sync-account";
 export const CASHFREE_STATEMENT_SYNC_STATUS = "/user/cashfree-statement/sync-status";
-export const CASHFREE_STATEMENT_SUMMARY = "/user/cashfree-statement/summary";
+export const CASHFREE_STATEMENT_BALANCE = "/user/cashfree-statement/balance";
+export const CASHFREE_STATEMENT_TODAY_PAYOUTS = "/user/cashfree-statement/today-payouts";

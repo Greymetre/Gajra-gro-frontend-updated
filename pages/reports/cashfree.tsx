@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Alert, Badge, Button, Col, Form, Image, Modal, ProgressBar, Row, Spinner, Tab, Table, Tabs } from 'react-bootstrap'
 import { ArrowClockwise, ArrowRepeat, ArrowUpRight, Download, Upload, Wallet2 } from 'react-bootstrap-icons'
+import { useSelector } from 'react-redux'
 import { utils, writeFile } from 'xlsx'
 import * as XLSX from 'xlsx'
 import BreadcrumbComponent from '../../components/Common/BreadcrumbComponent'
@@ -114,6 +115,9 @@ function readXlsxFile(file: File): Promise<CashfreeRow[]> {
 
 const CashfreeReport = () => {
   const [activeTab, setActiveTab] = useState<StatementType>('ACCOUNT')
+  const myPermissions = useSelector((state: any) => state?.permission?.permission)
+  const canImport = Array.isArray(myPermissions) && myPermissions.includes('reports.cashfreeimport')
+  const canExport = Array.isArray(myPermissions) && myPermissions.includes('reports.cashfreeexport')
   const [lists, setLists] = useState<Record<StatementType, typeof initialListState>>({
     ACCOUNT: initialListState,
     TRANSFER: initialListState,
@@ -204,7 +208,6 @@ const CashfreeReport = () => {
       }
       downloadCashfreeReport(account, transfer, redemptions)
     } catch (error: any) {
-      if (error?.response?.status === 403) setAccessDenied(true)
       alert(error?.response?.data?.message || 'Unable to export report')
     } finally {
       setIsExporting(false)
@@ -371,7 +374,6 @@ const CashfreeReport = () => {
         setActiveTab(importType)
       }
     } catch (error: any) {
-      if (error?.response?.status === 403) setAccessDenied(true)
       alert(error?.response?.data?.message || 'Unable to import file')
     } finally {
       setIsImporting(false)
@@ -531,15 +533,21 @@ const CashfreeReport = () => {
             {isSyncRunning || isStartingSync ? <Spinner animation="border" size="sm" /> : <ArrowRepeat />}{' '}
             {isSyncRunning ? 'Syncing…' : 'Sync from Cashfree'}
           </Button>
-          <Button onClick={() => setShowTemplateModal(true)} className="cd-btn cd-btn-outline">
-            <Download /> Template
-          </Button>
-          <Button onClick={openImportModal} className="cd-btn cd-btn-outline">
-            <Upload /> Import
-          </Button>
-          <Button onClick={handleOnExport} className="cd-btn cd-btn-outline" disabled={isExporting}>
-            {isExporting ? <Spinner animation="border" size="sm" /> : <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} />} Export
-          </Button>
+          {canImport ? (
+            <>
+              <Button onClick={() => setShowTemplateModal(true)} className="cd-btn cd-btn-outline">
+                <Download /> Template
+              </Button>
+              <Button onClick={openImportModal} className="cd-btn cd-btn-outline">
+                <Upload /> Import
+              </Button>
+            </>
+          ) : null}
+          {canExport ? (
+            <Button onClick={handleOnExport} className="cd-btn cd-btn-outline" disabled={isExporting}>
+              {isExporting ? <Spinner animation="border" size="sm" /> : <Image src={IMAGE_URL + EXCEL_DEMO_IMAGE} />} Export
+            </Button>
+          ) : null}
         </div>
       </div>
 

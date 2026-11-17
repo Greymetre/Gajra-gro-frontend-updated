@@ -51,6 +51,8 @@ const OTHER_LABELS: Record<string, string> = {
     damageentryscan: "Damage entry scan",
     otprequest: "OTP log",
     cashfree: "Cashfree report",
+    cashfreeimport: "Cashfree import",
+    cashfreeexport: "Cashfree export",
     send: "Send",
 };
 

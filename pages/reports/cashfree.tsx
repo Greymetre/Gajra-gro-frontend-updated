@@ -212,7 +212,7 @@ const CashfreeReport = () => {
           <div className="d-flex align-items-center gap-2 mb-2">
             <Spinner animation="border" size="sm" />
             <strong>
-              {inTransfers ? 'Step 2 of 2: fetching transfer details of CRM payouts' : `Step 1 of ${startedBy === 'auto' ? 1 : 2}: syncing account statement`}
+              {inTransfers ? 'Step 2 of 2: fetching transfer details of CRM payouts' : 'Step 1 of 2: syncing account statement'}
               {startedBy === 'auto' ? ' (automatic sync)' : ''}…
             </strong>
           </div>

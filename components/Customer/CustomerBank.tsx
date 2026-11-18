@@ -293,14 +293,29 @@ console.log("customeridcustomerid" , customerid)
   // A verified document is always treated as checked.
   const [checkingDoc, setCheckingDoc] = useState<string | null>(null);
   const handelCustomerkycChecked = async (kycdocs: string, checked: boolean) => {
+    // Checking needs a sales person (Assigned User) on the customer; the API enforces it too
+    if (checked && !kyc?.userInfo?._id) {
+      window.alert("Please assign a sales person to this customer first (Detail tab → Assignment → Assigned User).");
+      return;
+    }
     setCheckingDoc(kycdocs);
     try {
-      const ok = await backendCustomerkycChecked({
+      const res: any = await backendCustomerkycChecked({
         customerid: customerid,
         kycdocs: kycdocs,
         checked: checked,
-      }).then((res) => res.isError == false);
-      if (ok) await refreshKycStatus();
+      });
+      if (res?.isError) {
+        window.alert(res?.message || "Could not update the Checked status.");
+        return;
+      }
+      await refreshKycStatus();
+    } catch (error: any) {
+      const message = error?.response?.data?.message;
+      window.alert(
+        (Array.isArray(message) ? message.join(", ") : message) ||
+          "Could not update the Checked status. Please try again."
+      );
     } finally {
       setCheckingDoc(null);
     }

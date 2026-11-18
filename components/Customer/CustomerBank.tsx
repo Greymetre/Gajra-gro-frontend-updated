@@ -417,7 +417,19 @@ console.log("customeridcustomerid" , customerid)
         >
           {verified ? "Verified" : "Not Verified"}
         </span>
-        {!verified && checkedInfo?.checked && (
+        {!verified && checkedInfo?.checked && checkedInfo?.approved && (
+          <span
+            className="cd-badge"
+            style={{ background: "#dcfce7", color: "#166534", marginLeft: 6 }}
+            title={[
+              checkedInfo.approvedByName ? `Approved by ${checkedInfo.approvedByName} (sales person)` : "Approved by the sales person",
+              checkedInfo.approvedAt ? new Date(checkedInfo.approvedAt).toLocaleString() : "",
+            ].filter(Boolean).join(" • ")}
+          >
+            Approved{checkedInfo.approvedByName ? ` by ${checkedInfo.approvedByName}` : ""} • Ready to verify
+          </span>
+        )}
+        {!verified && checkedInfo?.checked && !checkedInfo?.approved && (
           <span
             className="cd-badge"
             style={{ background: "#dbeafe", color: "#1e40af", marginLeft: 6 }}
@@ -446,10 +458,12 @@ console.log("customeridcustomerid" , customerid)
         title={
           defaultChecked
             ? "Verified documents are already checked"
-            : "Sales team has checked this document (shown in SFA)"
+            : docChecked(kycdocs)?.approved
+              ? "Approved by the sales person; verify or reject it"
+              : "Sales team has checked this document (shown in SFA)"
         }
         checked={!!defaultChecked || !!docChecked(kycdocs)?.checked}
-        disabled={!!defaultChecked || checkingDoc === kycdocs}
+        disabled={!!defaultChecked || !!docChecked(kycdocs)?.approved || checkingDoc === kycdocs}
         onChange={(e) => handelCustomerkycChecked(kycdocs, e.target.checked)}
       />
       <Form.Check

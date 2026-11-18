@@ -106,6 +106,8 @@ export const backendCustomerkycVerified = (data) =>
   post(url.CUSTOMER_KYC_VERIFIED, data);
 export const backendCustomerkycRejected = (data) =>
   post(url.CUSTOMER_KYC_REJECTED, data);
+export const backendCustomerkycChecked = (data) =>
+  post(url.CUSTOMER_KYC_CHECKED, data);
 export const backendCustomerListStatus = (data) =>
   post(url.CUSTOMER_LIST_STATUS, data);
 export const backendCustomerPendingPayeeList = (data) =>

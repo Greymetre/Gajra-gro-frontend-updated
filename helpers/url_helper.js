@@ -32,6 +32,7 @@ export const CUSTOMER_CLEAR_BANK_DETAIL = "/user/customers/clearBankInfo";
 export const CUSTOMER_CLEAR_UPI_DETAIL = "/user/customers/clearUpiInfo";
 export const CUSTOMER_KYC_VERIFIED = "/user/customers/kycVerified";
 export const CUSTOMER_KYC_REJECTED = "/user/customers/kycRejected";
+export const CUSTOMER_KYC_CHECKED = "/user/customers/kycChecked";
 export const CUSTOMER_LIST_STATUS = "/user/customers/status";
 export const CUSTOMER_PENDING_PAYEELIST = "/user/customers/pendingPayee";
 export const CUSTOMER_USER_ASSIGN = "/user/customers/userAssign";

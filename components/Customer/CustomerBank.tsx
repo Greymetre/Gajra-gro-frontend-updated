@@ -23,6 +23,7 @@ import {
   backendCustomersClearUpi,
   backendCustomerkycVerified,
   backendCustomerkycRejected,
+  backendCustomerkycChecked,
   backendCustomerKycUpload,
   backendGetCustomerInfo,
 } from "../../helpers/backend_helper";
@@ -288,6 +289,24 @@ console.log("customeridcustomerid" , customerid)
     }
     return false;
   };
+  // "Checked" checkbox: the sales team has checked this document; the mark is shown in SFA.
+  // A verified document is always treated as checked.
+  const [checkingDoc, setCheckingDoc] = useState<string | null>(null);
+  const handelCustomerkycChecked = async (kycdocs: string, checked: boolean) => {
+    setCheckingDoc(kycdocs);
+    try {
+      const ok = await backendCustomerkycChecked({
+        customerid: customerid,
+        kycdocs: kycdocs,
+        checked: checked,
+      }).then((res) => res.isError == false);
+      if (ok) await refreshKycStatus();
+    } finally {
+      setCheckingDoc(null);
+    }
+  };
+  const docChecked = (kycdocs: string) => kyc?.kycChecked?.[kycdocs] || null;
+
   const handleInputChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
@@ -374,13 +393,30 @@ console.log("customeridcustomerid" , customerid)
     }
   };
 
-  const renderStatus = (verified?: boolean) => (
-    <span
-      className={`cd-badge ${verified ? "cd-badge-success" : "cd-badge-warn"}`}
-    >
-      {verified ? "Verified" : "Not Verified"}
-    </span>
-  );
+  const renderStatus = (verified?: boolean, kycdocs?: string) => {
+    const checkedInfo = kycdocs ? docChecked(kycdocs) : null;
+    return (
+      <>
+        <span
+          className={`cd-badge ${verified ? "cd-badge-success" : "cd-badge-warn"}`}
+        >
+          {verified ? "Verified" : "Not Verified"}
+        </span>
+        {!verified && checkedInfo?.checked && (
+          <span
+            className="cd-badge"
+            style={{ background: "#dbeafe", color: "#1e40af", marginLeft: 6 }}
+            title={[
+              checkedInfo.byName ? `Checked by ${checkedInfo.byName}` : "Checked",
+              checkedInfo.at ? new Date(checkedInfo.at).toLocaleString() : "",
+            ].filter(Boolean).join(" • ")}
+          >
+            Checked
+          </span>
+        )}
+      </>
+    );
+  };
 
   const renderVerifyControls = (
     verifiedTo: string,
@@ -388,6 +424,19 @@ console.log("customeridcustomerid" , customerid)
     defaultChecked?: boolean
   ) => (
     <div className="kyc-controls">
+      <Form.Check
+        type="checkbox"
+        id={`kyc-checked-${kycdocs}`}
+        label="Checked"
+        title={
+          defaultChecked
+            ? "Verified documents are already checked"
+            : "Sales team has checked this document (shown in SFA)"
+        }
+        checked={!!defaultChecked || !!docChecked(kycdocs)?.checked}
+        disabled={!!defaultChecked || checkingDoc === kycdocs}
+        onChange={(e) => handelCustomerkycChecked(kycdocs, e.target.checked)}
+      />
       <Form.Check
         type="switch"
         label="Verified"
@@ -660,7 +709,7 @@ console.log("customeridcustomerid" , customerid)
           <div className="kyc-section-title">
             <h6>GSTIN</h6>
             {(kyc?.gstinImage || kyc?.gstinNo) &&
-              renderStatus(kyc?.gstinVerified)}
+              renderStatus(kyc?.gstinVerified, "gstin")}
           </div>
           {(kyc?.gstinImage || kyc?.gstinNo) &&
             renderVerifyControls(
@@ -687,7 +736,7 @@ console.log("customeridcustomerid" , customerid)
           <div className="kyc-section-title">
             <h6>PAN</h6>
             {(kyc?.panImage || kyc?.panNo) &&
-              renderStatus(kyc?.panVerified)}
+              renderStatus(kyc?.panVerified, "pan")}
           </div>
           {(kyc?.panImage || kyc?.panNo) &&
             renderVerifyControls(
@@ -714,7 +763,7 @@ console.log("customeridcustomerid" , customerid)
           <div className="kyc-section-title">
             <h6>Aadhar</h6>
             {(kyc?.aadharFrontImage || kyc?.aadharNo) &&
-              renderStatus(kyc?.aadharVerified)}
+              renderStatus(kyc?.aadharVerified, "aadhar")}
           </div>
           {(kyc?.aadharFrontImage || kyc?.aadharNo) &&
             renderVerifyControls(
@@ -746,7 +795,7 @@ console.log("customeridcustomerid" , customerid)
           <div className="kyc-section-title">
             <h6>Other Document</h6>
             {(kyc?.otherFrontImage || kyc?.otherNo) &&
-              renderStatus(kyc?.otherVerified)}
+              renderStatus(kyc?.otherVerified, "other")}
           </div>
           {(kyc?.otherFrontImage || kyc?.otherNo) &&
             renderVerifyControls(
@@ -772,7 +821,7 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>Bank / Passbook</h6>
-            {renderStatus(kyc?.bankVerified)}
+            {renderStatus(kyc?.bankVerified, "bank")}
           </div>
           {renderVerifyControls(
             "verified.bankVerified",
@@ -814,7 +863,7 @@ console.log("customeridcustomerid" , customerid)
         <div className="kyc-section-head">
           <div className="kyc-section-title">
             <h6>UPI</h6>
-            {renderStatus(kyc?.upiVerified)}
+            {renderStatus(kyc?.upiVerified, "upi")}
           </div>
           {renderVerifyControls(
             "verified.upiVerified",

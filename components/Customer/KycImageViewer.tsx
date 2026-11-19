@@ -125,6 +125,9 @@ const KycImageViewer = ({
   onVerify,
   onUnverify,
   onReject,
+  checked,
+  checkedInfo,
+  onCheck,
 }: {
   show: boolean;
   onHide: () => void;
@@ -142,14 +145,27 @@ const KycImageViewer = ({
   ) => Promise<boolean | void>;
   onUnverify?: () => Promise<boolean | void>;
   onReject: () => Promise<boolean | void>;
+  /** Sales team has checked this document (ignored once verified). */
+  checked?: boolean;
+  /** Tooltip / note text for the Checked badge, e.g. "Checked by X • date". */
+  checkedInfo?: string;
+  /**
+   * Marks the document as checked (or un-checked) and saves the number and
+   * editable fields typed in so far. Omit to hide the Checked button.
+   */
+  onCheck?: (
+    checked: boolean,
+    docNo?: string,
+    details?: Record<string, string>
+  ) => Promise<boolean | void>;
 }) => {
   const [index, setIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(2.5);
   const [rotation, setRotation] = useState(0);
   const [lensEnabled, setLensEnabled] = useState(true);
-  const [busy, setBusy] = useState<"verify" | "unverify" | "reject" | null>(
-    null
-  );
+  const [busy, setBusy] = useState<
+    "verify" | "unverify" | "reject" | "check" | "uncheck" | null
+  >(null);
   const [docNo, setDocNo] = useState("");
   const [details, setDetails] = useState<Record<string, string>>({});
   // Verified details are locked until the admin chooses to edit them.
@@ -208,23 +224,28 @@ const KycImageViewer = ({
       Object.entries(details).map(([k, v]) => [k, (v || "").trim()])
     );
 
-  const run = async (kind: "verify" | "unverify" | "reject") => {
+  const run = async (
+    kind: "verify" | "unverify" | "reject" | "check" | "uncheck"
+  ) => {
     setBusy(kind);
     try {
+      const docArg = numberField ? trimmedNo : undefined;
+      const detailArg = editableFields.length ? trimmedDetails() : undefined;
       const ok = await (kind === "verify"
-        ? onVerify(
-            numberField ? trimmedNo : undefined,
-            editableFields.length ? trimmedDetails() : undefined
-          )
+        ? onVerify(docArg, detailArg)
+        : kind === "check"
+        ? onCheck?.(true, docArg, detailArg)
+        : kind === "uncheck"
+        ? onCheck?.(false)
         : kind === "unverify"
         ? onUnverify?.()
         : onReject());
       if (!ok) return;
       // The parent refreshes the KYC data on success. Close after verify /
-      // reject so the updated page is visible; stay open after un-verify so
-      // the number can be corrected straight away.
+      // reject / check so the updated page is visible; stay open after
+      // un-verify / un-check so the details can be corrected straight away.
       if (kind === "unverify") setEditing(false);
-      else onHide();
+      else if (kind !== "uncheck") onHide();
     } finally {
       setBusy(null);
     }
@@ -246,6 +267,15 @@ const KycImageViewer = ({
         <Modal.Title className="kyc-viewer-title">
           {title}
           <span className={`cd-badge ${status.cls}`}>{status.text}</span>
+          {!verified && checked ? (
+            <span
+              className="cd-badge"
+              style={{ background: "#dbeafe", color: "#1e40af", marginLeft: 6 }}
+              title={checkedInfo || "Checked"}
+            >
+              Checked
+            </span>
+          ) : null}
         </Modal.Title>
       </Modal.Header>
       <Modal.Body className="kyc-viewer-body">
@@ -452,6 +482,37 @@ const KycImageViewer = ({
                         "✓ Verify"
                       )}
                     </Button>
+                    {onCheck && !verified ? (
+                      <Button
+                        variant="outline-primary"
+                        className="cd-btn"
+                        title="Save the details typed above and mark this document as Checked (shown in SFA)"
+                        disabled={!!busy || !!numberError || hasDetailError}
+                        onClick={() => run("check")}
+                      >
+                        {busy === "check" ? (
+                          <Spinner as="span" animation="border" size="sm" />
+                        ) : checked ? (
+                          "☑ Save (Checked)"
+                        ) : (
+                          "☑ Checked"
+                        )}
+                      </Button>
+                    ) : null}
+                    {onCheck && !verified && checked ? (
+                      <Button
+                        variant="link"
+                        className="cd-btn"
+                        disabled={!!busy}
+                        onClick={() => run("uncheck")}
+                      >
+                        {busy === "uncheck" ? (
+                          <Spinner as="span" animation="border" size="sm" />
+                        ) : (
+                          "Uncheck"
+                        )}
+                      </Button>
+                    ) : null}
                     {editing ? (
                       <Button
                         variant="link"

@@ -292,11 +292,17 @@ console.log("customeridcustomerid" , customerid)
   // "Checked" checkbox: the sales team has checked this document; the mark is shown in SFA.
   // A verified document is always treated as checked.
   const [checkingDoc, setCheckingDoc] = useState<string | null>(null);
-  const handelCustomerkycChecked = async (kycdocs: string, checked: boolean) => {
+  // From the image viewer, docNo / details carry what the admin typed so far; they are saved with the check.
+  const handelCustomerkycChecked = async (
+    kycdocs: string,
+    checked: boolean,
+    docNo?: string,
+    details?: Record<string, string>
+  ): Promise<boolean> => {
     // Checking needs a sales person (Assigned User) on the customer; the API enforces it too
     if (checked && !kyc?.userInfo?._id) {
       window.alert("Please assign a sales person to this customer first (Detail tab → Assignment → Assigned User).");
-      return;
+      return false;
     }
     setCheckingDoc(kycdocs);
     try {
@@ -304,18 +310,22 @@ console.log("customeridcustomerid" , customerid)
         customerid: customerid,
         kycdocs: kycdocs,
         checked: checked,
+        ...(checked && docNo ? { docNo } : {}),
+        ...(checked && details ? { details } : {}),
       });
       if (res?.isError) {
         window.alert(res?.message || "Could not update the Checked status.");
-        return;
+        return false;
       }
       await refreshKycStatus();
+      return true;
     } catch (error: any) {
       const message = error?.response?.data?.message;
       window.alert(
         (Array.isArray(message) ? message.join(", ") : message) ||
           "Could not update the Checked status. Please try again."
       );
+      return false;
     } finally {
       setCheckingDoc(null);
     }
@@ -652,6 +662,30 @@ console.log("customeridcustomerid" , customerid)
     setViewer({ doc, index });
   };
   const activeDoc = viewer ? kycDocs[viewer.doc] : null;
+  // Values saved from the viewer (verify / checked) are mirrored in the form
+  // so a later Upload doesn't send the old values back. Blank values are not
+  // saved by the API, so they are not mirrored either.
+  const mirrorViewerValues = (
+    docNo?: string,
+    details?: Record<string, string>
+  ) => {
+    if (activeDoc && docNo) {
+      formik.setFieldValue(
+        activeDoc.numberField.name,
+        activeDoc.numberField.uppercase ? docNo.toUpperCase() : docNo
+      );
+    }
+    if (details) {
+      (["holderName", "bankName", "ifsc"] as const).forEach((key) => {
+        if (details[key]) {
+          formik.setFieldValue(
+            key,
+            key === "ifsc" ? details[key].toUpperCase() : details[key]
+          );
+        }
+      });
+    }
+  };
 
   const renderUpload = (
     doc: KycDocKey,
@@ -986,27 +1020,39 @@ console.log("customeridcustomerid" , customerid)
             docNo,
             details,
           });
-          // The number is saved with the verification; mirror it in the form
-          // so a later Upload doesn't send the old value back.
-          if (ok && activeDoc && docNo !== undefined) {
-            formik.setFieldValue(
-              activeDoc.numberField.name,
-              activeDoc.numberField.uppercase ? docNo.toUpperCase() : docNo
-            );
-          }
-          // Same for bank details edited in the viewer.
-          if (ok && details) {
-            (["holderName", "bankName", "ifsc"] as const).forEach((key) => {
-              if (key in details) {
-                formik.setFieldValue(
-                  key,
-                  key === "ifsc" ? details[key].toUpperCase() : details[key]
-                );
-              }
-            });
-          }
+          if (ok) mirrorViewerValues(docNo, details);
           return ok;
         }}
+        checked={viewer ? !!docChecked(viewer.doc)?.checked : false}
+        checkedInfo={
+          viewer && docChecked(viewer.doc)?.checked
+            ? [
+                docChecked(viewer.doc)?.byName
+                  ? `Checked by ${docChecked(viewer.doc)?.byName}`
+                  : "Checked",
+                docChecked(viewer.doc)?.at
+                  ? new Date(docChecked(viewer.doc)?.at).toLocaleString()
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" • ")
+            : undefined
+        }
+        // Hidden once the sales person has approved it (the API refuses changes then).
+        onCheck={
+          viewer && !docChecked(viewer.doc)?.approved
+            ? async (checked, docNo, details) => {
+                const ok = await handelCustomerkycChecked(
+                  viewer.doc,
+                  checked,
+                  docNo,
+                  details
+                );
+                if (ok && checked) mirrorViewerValues(docNo, details);
+                return ok;
+              }
+            : undefined
+        }
         onUnverify={() =>
           handelCustomerkycUnverified({
             customerid: customerid,

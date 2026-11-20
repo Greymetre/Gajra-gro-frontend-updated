@@ -11,11 +11,11 @@ import PaginationNav from '../../components/Common/PaginationNav'
 import { backendDeleteNews, backendGetNewsFilters, backendGetNewsHistory, backendSendNews } from '../../helpers/backend_helper'
 import { IMAGE_URL } from '../../utils/constant'
 
-// Same flow as Duke's News Management: filter State -> District -> City -> Customers,
+// Same flow as Duke's News Management: filter Customer Type, State -> District -> City -> Customers,
 // then send a title, message and optional image as a push + in-app notification.
 
 type Option = { value: string; label: string }
-type Filters = { stateId: string; districtId: string; cityId: string }
+type Filters = { customerType: string; stateId: string; districtId: string; cityId: string }
 
 const TITLE_MAX = 150
 const MESSAGE_MAX = 1000
@@ -23,7 +23,8 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const HISTORY_LIMIT = 20
 
-const emptyFilters: Filters = { stateId: '', districtId: '', cityId: '' }
+const emptyFilters: Filters = { customerType: '', stateId: '', districtId: '', cityId: '' }
+const defaultCustomerTypes: Option[] = [{ value: 'Mechanic', label: 'Mechanic' }, { value: 'Retailer', label: 'Retailer' }]
 const allOption = (label: string): Option => ({ value: '', label })
 
 const errorMessage = (error: any, fallback: string) => {
@@ -39,6 +40,7 @@ export default function NewsManagement() {
 
   // ---- filters ----
   const [filters, setFilters] = useState<Filters>(emptyFilters)
+  const [customerTypes, setCustomerTypes] = useState<Option[]>(defaultCustomerTypes)
   const [states, setStates] = useState<Option[]>([])
   const [districts, setDistricts] = useState<Option[]>([])
   const [cities, setCities] = useState<Option[]>([])
@@ -75,6 +77,7 @@ export default function NewsManagement() {
       const res = await backendGetNewsFilters(params)
       if (id !== requestId.current || res?.isError) return
       const data = res.data || {}
+      if (Array.isArray(data.customerTypes) && data.customerTypes.length) setCustomerTypes(data.customerTypes)
       setStates(data.states || [])
       setDistricts(data.districts || [])
       setCities(data.cities || [])
@@ -97,9 +100,10 @@ export default function NewsManagement() {
   useEffect(() => () => searchCustomers.cancel(), [searchCustomers])
 
   const changeFilter = (key: keyof Filters, value: string) => {
-    // Like Duke: changing State resets District/City, changing District resets City; customers are cleared.
+    // Like Duke: changing Customer Type keeps the location; changing State resets District/City, changing District resets City; customers are cleared.
     const next: Filters =
-      key === 'stateId' ? { stateId: value, districtId: '', cityId: '' }
+      key === 'customerType' ? { ...filters, customerType: value }
+        : key === 'stateId' ? { ...filters, stateId: value, districtId: '', cityId: '' }
         : key === 'districtId' ? { ...filters, districtId: value, cityId: '' }
           : { ...filters, cityId: value }
     setFilters(next)
@@ -146,7 +150,8 @@ export default function NewsManagement() {
       setAlert({ variant: 'danger', text: 'No active customers matched the selected filters.' })
       return
     }
-    if (!window.confirm(`Send this news to ${audience.toLocaleString('en-IN')} customer(s)?`)) return
+    const who = filters.customerType && !selectedCustomers.length ? `${filters.customerType.toLowerCase()}(s)` : 'customer(s)'
+    if (!window.confirm(`Send this news to ${audience.toLocaleString('en-IN')} ${who}?`)) return
 
     const formData = new FormData()
     Object.entries(filters).forEach(([key, value]) => { if (value) formData.append(key, value) })
@@ -232,7 +237,17 @@ export default function NewsManagement() {
                   {alert ? <Alert variant={alert.variant} dismissible onClose={() => setAlert(null)}>{alert.text}</Alert> : null}
                   <Form onSubmit={handleSend}>
                     <Row className="g-3">
-                      <Col md={3} sm={6} xs={12}>
+                      <Col lg md={4} sm={6} xs={12}>
+                        <Form.Label>Customer Type</Form.Label>
+                        <Select
+                          instanceId="news-customer-type"
+                          options={[allOption('All Customer Types'), ...customerTypes]}
+                          value={selectedOption(customerTypes, filters.customerType, 'All Customer Types')}
+                          onChange={(o: any) => changeFilter('customerType', o?.value || '')}
+                          isSearchable={false}
+                        />
+                      </Col>
+                      <Col lg md={4} sm={6} xs={12}>
                         <Form.Label>State</Form.Label>
                         <Select
                           instanceId="news-state"
@@ -242,7 +257,7 @@ export default function NewsManagement() {
                           isSearchable
                         />
                       </Col>
-                      <Col md={3} sm={6} xs={12}>
+                      <Col lg md={4} sm={6} xs={12}>
                         <Form.Label>District</Form.Label>
                         <Select
                           instanceId="news-district"
@@ -252,7 +267,7 @@ export default function NewsManagement() {
                           isSearchable
                         />
                       </Col>
-                      <Col md={3} sm={6} xs={12}>
+                      <Col lg md={4} sm={6} xs={12}>
                         <Form.Label>City</Form.Label>
                         <Select
                           instanceId="news-city"
@@ -262,7 +277,7 @@ export default function NewsManagement() {
                           isSearchable
                         />
                       </Col>
-                      <Col md={3} sm={6} xs={12}>
+                      <Col lg md={4} sm={6} xs={12}>
                         <Form.Label>Customers</Form.Label>
                         <Select
                           instanceId="news-customers"
@@ -396,6 +411,7 @@ export default function NewsManagement() {
                             </td>
                             <td>
                               {locationText(row.filters)}
+                              <div className="small text-muted">{row.filters?.customerType ? `${row.filters.customerType}s only` : 'All customer types'}</div>
                               {row.filters?.customerIds?.length ? <div className="small text-muted">{row.filters.customerIds.length} selected customer(s)</div> : null}
                             </td>
                             <td>{row.recipientCount ?? 0}</td>
